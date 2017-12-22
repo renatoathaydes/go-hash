@@ -1,0 +1,4 @@
+.idea/
+go-hash
+go-hash.iml
+vendor/
