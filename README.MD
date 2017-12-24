@@ -212,6 +212,11 @@ where:
 * `E(entries)` the encrypted database entries. Encryption is performed using AES256 with `K` as the key.
 * `HMAC` The HMAC of the whole database up to this point, with SHA512 as the underlying hash function using `L` as the key.
 
+This format is based on the paper by Paolo Gasti and Kasper B. Rasmussen on 
+[The Security of Password Manager Database Formats](http://www.6nelweb.com/bio/papers/pwvault-ESORICS12-ext.pdf) and 
+adapted from PasswordSafe's
+[PWS3](https://metacpan.org/pod/distribution/Crypt-PWSafe3/lib/Crypt/PWSafe3/Databaseformat.pm) format.
+
 ## Future work
 
 * Make passwords expirable.
