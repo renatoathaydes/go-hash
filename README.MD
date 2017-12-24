@@ -4,18 +4,18 @@
 
 Current status:
 
-[ x ] database format definition
-[   ] database format implementation
-[   ] Create database
-[   ] Load database
-[   ] CLI `ls` command
-[   ] CLI `create entry` command
-[   ] CLI `create group` command
-[   ] CLI `cp u` (copy username) command
-[   ] CLI `cp p` (copy password) command
-[   ] CLI `goto` command
-[   ] CLI `rm entry` command
-[   ] CLI `rm group` command
+[x] database format definition
+[ ] database format implementation
+[ ] Create database
+[ ] Load database
+[ ] CLI `ls` command
+[ ] CLI `create entry` command
+[ ] CLI `create group` command
+[ ] CLI `cp u` (copy username) command
+[ ] CLI `cp p` (copy password) command
+[ ] CLI `goto` command
+[ ] CLI `rm entry` command
+[ ] CLI `rm group` command
 
 ## Description
 
