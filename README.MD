@@ -26,7 +26,7 @@ go-hash was designed to allow users to keep the data safely even when non-secure
 It is safe, for example, to keep your go-hash data in Dropbox or other cloud services as long as a strong master password is chosen.
 
 The database format used by go-hash was inspired by [PWS3](https://metacpan.org/pod/distribution/Crypt-PWSafe3/lib/Crypt/PWSafe3/Databaseformat.pm)
-and modified to benefit from the strengths of [BCrypt](https://en.wikipedia.org/wiki/Bcrypt).
+and modified to benefit from the strengths of [Argon2](https://github.com/p-h-c/phc-winner-argon2).
 The format is described in detail later in this document.
 
 ## Usage
@@ -191,26 +191,31 @@ $go-hash> rm group personal
 go-hash uses the following database format:
 
 ```
-version | salt | t | m | l | H(P) | B1 | B2 | B3 | B4 | len(E(entries)) | E(entries) | HMAC
+version | salt | H | B1 | B2 | B3 | B4 | len(E) | E | HMAC
 ```
 
 where:
 
-* `version` (4 characters) version of the database.
-* `salt` (32 characters) used to hash the user's master password.
-* `t` (8-digit hex) time parameter of the hash function.
-* `m` (8-digit hex) memory parameter of the hash function.
-* `l` (8-digit hex) password hash length.
-* `P` [Argon2](https://github.com/p-h-c/phc-winner-argon2)-hash of the user's master password with a key length of `l`.
-  Notice that the hash is calculated based on the user's master password and the salt.
-* `H(P)` (512 characters) SHA512 checksum of the password hash.
-* `B1` and `B2` are the 128-bit blocks encrypted using AES256 with `P` as the key. These blocks contain the 256 bit random
-  key `K` that is used to encrypt the database entries.
-* `B3` and `B4` are the 128-bit blocks encrypted using AES256 with `P` as the key. These blocks contain the 256 bit random
-  key `L` that is used to calculate the HMAC.
-* `len(E(entries))` the length of the encrypted database entries.
-* `E(entries)` the encrypted database entries. Encryption is performed using AES256 with `K` as the key.
-* `HMAC` The HMAC of the whole database up to this point, with SHA512 as the underlying hash function using `L` as the key.
+* `version` (4 bytes) version of the database.
+* `salt` (32 bytes) used to hash the user's master password.
+* `P` [Argon2](https://github.com/p-h-c/phc-winner-argon2)-hash of the user's master password with a key length    of 32. Notice that the hash is calculated based on the user's master password and the salt.
+* `H` (512 bytes) SHA512 checksum of the password hash `P`.
+* `K` (32 bytes) random key used to encrypt the database entries.
+* `L` (32 bytes) random key used to calculate the HMAC of the database.
+* `B1` (64 bytes) the least-significant half of the `K` key after encryption with `P` used as key.
+* `B2` (64 bytes) the most-significant half of the `K` key after encryption with `P` used as key.		
+* `B3` (64 bytes) the least-significant half of the `L` key after encryption with `P` used as key.
+* `B4` (64 bytes) the most-significant half of the `L` key after encryption with `P` used as key.		
+* `len(E)` (4 bytes) the hexadecimal length, in bytes, of the encrypted database entries.
+* `E` the encrypted database entries. Encryption is performed using AES256 with `K` as the key.
+* `HMAC` The HMAC of the salt followed by the unencrypted, serialized version of the database entries,
+   with SHA512 as the underlying hash function using `L` as the key.
+
+The Argon2 parameters used to hash the master password are part of the database format version used, and for the current version, `GH00`, are:
+
+* `time` = 4
+* `memory` = 32 * 1024
+* `key length` = 32
 
 This format is based on the paper by Paolo Gasti and Kasper B. Rasmussen on 
 [The Security of Password Manager Database Formats](http://www.6nelweb.com/bio/papers/pwvault-ESORICS12-ext.pdf) and 
