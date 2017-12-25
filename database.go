@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/renatoathaydes/go-hash/encryption"
 )
 
+// DBVERSION is the current version of the go-hash database format.
 const DBVERSION = "GH00"
 
 // WriteDatabase writes the encrypted database to the given filePath with the provided state and key.
@@ -34,10 +33,22 @@ func WriteDatabase(filePath, password string, data *State) error {
 	K := encryption.GenerateRandomBytes(32)
 	L := encryption.GenerateRandomBytes(32)
 
-	B1 := encryption.Encrypt(P, K[:16])
-	B2 := encryption.Encrypt(P, K[16:])
-	B3 := encryption.Encrypt(P, L[:16])
-	B4 := encryption.Encrypt(P, L[16:])
+	B1, err := encryption.Encrypt(P, K[:16])
+	if err != nil {
+		return err
+	}
+	B2, err := encryption.Encrypt(P, K[16:])
+	if err != nil {
+		return err
+	}
+	B3, err := encryption.Encrypt(P, L[:16])
+	if err != nil {
+		return err
+	}
+	B4, err := encryption.Encrypt(P, L[16:])
+	if err != nil {
+		return err
+	}
 
 	encryptedState, err := encryption.Encrypt(K, stateBytes)
 	if err != nil {
@@ -45,24 +56,25 @@ func WriteDatabase(filePath, password string, data *State) error {
 	}
 
 	encryptedStateLen := len(encryptedState)
-	lenE = []byte(fmt.Sprintf("%4x", encryptedStateLen))
+	lenE := []byte(fmt.Sprintf("%4x", encryptedStateLen))
 
-	mac := encryption.Hmac(L, append(salt, stateBytes))
+	mac := encryption.Hmac(L, append(salt, stateBytes...))
 
 	fileOffset := 0
 
 	// version | salt | H | B1 | B2 | B3 | B4 | len(E) | E | HMAC
-	for _, b = range [][]byte{[]byte(DBVERSION), salt, H, B1, B2, B3, B4, lenE, encryptedState, mac} {
-		_, err = file.WriteAt(b, fileOffset)
+	for _, b := range [][]byte{[]byte(DBVERSION), salt, H, B1, B2, B3, B4, lenE, encryptedState, mac} {
+		_, err = file.WriteAt(b, int64(fileOffset))
 		if err != nil {
 			return err
 		}
-		fileOffset += len(b)	
+		fileOffset += len(b)
 	}
+	return nil
 }
 
-// ReadDatabase reads the encrypted database from the filePath, using the given key for decryption.
-func ReadDatabase(filePath string, key []byte) (State, error) {
+// ReadDatabase reads the encrypted database from the filePath, using the given password for decryption.
+func ReadDatabase(filePath string, password string) (State, error) {
 	dbError := errors.New("Corrupt database")
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -70,10 +82,10 @@ func ReadDatabase(filePath string, key []byte) (State, error) {
 	}
 	defer file.Close()
 
-	fileOffset int64 := 0
+	var fileOffset int64
 
 	version := make([]byte, 4, 4)
-	readCount, err := file.ReadAt(version, fileOffset)
+	_, err = file.ReadAt(version, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
@@ -84,14 +96,14 @@ func ReadDatabase(filePath string, key []byte) (State, error) {
 	}
 
 	salt := make([]byte, 32, 32)
-	readCount, err = file.ReadAt(salt, fileOffset)
+	_, err = file.ReadAt(salt, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
 	fileOffset += 32
-	
+
 	H := make([]byte, 512, 512)
-	readCount, err = file.ReadAt(H, fileOffset)
+	_, err = file.ReadAt(H, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
@@ -99,34 +111,34 @@ func ReadDatabase(filePath string, key []byte) (State, error) {
 
 	P := encryption.PasswordHash(password, salt)
 	expectedH := encryption.CheckSum(P)
-	
-	if H != expectedH {
+
+	if !bytes.Equal(H, expectedH) {
 		return nil, errors.New("Wrong password or corrupt database")
 	}
 
 	B1 := make([]byte, 64, 64)
-	readCount, err = file.ReadAt(B1, fileOffset)
+	_, err = file.ReadAt(B1, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += 64	
-	
+	fileOffset += 64
+
 	B2 := make([]byte, 64, 64)
-	readCount, err = file.ReadAt(B2, fileOffset)
+	_, err = file.ReadAt(B2, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += 64	
-	
+	fileOffset += 64
+
 	B3 := make([]byte, 64, 64)
-	readCount, err = file.ReadAt(B3, fileOffset)
+	_, err = file.ReadAt(B3, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += 64	
-	
+	fileOffset += 64
+
 	B4 := make([]byte, 64, 64)
-	readCount, err = file.ReadAt(B4, fileOffset)
+	_, err = file.ReadAt(B4, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
@@ -152,44 +164,54 @@ func ReadDatabase(filePath string, key []byte) (State, error) {
 	}
 
 	K := append(decryptedB1, decryptedB2...)
-	L := append(decryptedB3, decryptedB4...)	
-	
+	L := append(decryptedB3, decryptedB4...)
+
 	payloadLen := make([]byte, 4, 4)
-	readCount, err := file.ReadAt(payloadLen, fileOffset)
+	_, err = file.ReadAt(payloadLen, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
 	fileOffset += 4
 
-	payload := make([]byte, payloadLen, payloadLen)
-	readCount, err := file.ReadAt(payload, fileOffset)
+	plen, err := strconv.ParseInt(string(payloadLen), 16, 0)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += payloadLen
 
-	stateBytes, err := encryption.Decrypt(L, payload)
+	payload := make([]byte, plen, plen)
+	_, err = file.ReadAt(payload, fileOffset)
 	if err != nil {
 		return nil, dbError
+	}
+	fileOffset += plen
+
+	stateBytes, err := encryption.Decrypt(K, payload)
+	if err != nil {
+		return nil, dbError
+	}
+
+	fileStat, err := file.Stat()
+	if err != nil {
+		return nil, err
 	}
 
 	// the rest of the file is the HMAC
-	remainingLen := len(file) - fileOffset
+	remainingLen := fileStat.Size() - fileOffset
 	if remainingLen <= 0 {
 		return nil, dbError
 	}
 	mac := make([]byte, remainingLen, remainingLen)
-	_, err := file.ReadAt(hmac, fileOffset)
+	_, err = file.ReadAt(mac, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
 
-	expectedMac := encryption.Hmac(L, append(salt, stateBytes))
-	
-	if ok := encryption.VerifyHmac(expectedHMac, mac); !ok {
+	expectedMac := encryption.Hmac(L, append(salt, stateBytes...))
+
+	if ok := encryption.VerifyHmac(expectedMac, mac); !ok {
 		return nil, dbError
 	}
-	
+
 	// decryption and validation completed successfully!
 	return decodeState(stateBytes)
 }

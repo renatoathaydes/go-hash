@@ -72,7 +72,7 @@ func VerifyHmac(mac1, mac2 []byte) bool {
 // GenerateSalt generates a random sequence of bytes that can be used as
 // a password salt.
 func GenerateSalt() []byte {
-	return GenerateRandomBytes(SALTLEN)	
+	return GenerateRandomBytes(SALTLEN)
 }
 
 // GenerateRandomBytes generates a random sequence of bytes.
@@ -86,13 +86,13 @@ func GenerateRandomBytes(len uint32) []byte {
 
 // PasswordHash creates a cryptographical hash of the salted password.
 func PasswordHash(password string, salt []byte) []byte {
-	return argon2.Key([]byte(password), salt, time, memory, uint8(runtime.NumCPU()), KEYLEN)
+	return argon2.Key([]byte(password), salt, TIME, MEMORY, uint8(runtime.NumCPU()), KEYLEN)
 }
 
 // CheckSum checksum of the message.
 func CheckSum(message []byte) []byte {
 	hash := sha512.New()
-	if _, err := hash.Write(message), err != nil {
+	if _, err := hash.Write(message); err != nil {
 		panic(err)
 	}
 	return hash.Sum(nil)
