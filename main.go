@@ -92,12 +92,12 @@ func splitTrimN(text string, max int) []string {
 	return result
 }
 
-func runCliLoop(state State, userPass string) {
-	group := ""
+func runCliLoop(state *State, dbPath string, userPass string) {
+	group := "default"
 	reader := bufio.NewReader(os.Stdin)
 	prompt := func() string {
 		var modifier string
-		if len(group) > 0 {
+		if len(group) > 0 && group != "default" {
 			modifier = ":" + group
 		}
 		return "$go-hash" + modifier + "> "
@@ -116,15 +116,19 @@ Loop:
 
 		switch cmd {
 		case "exit":
-			if len(group) > 0 {
-				group = ""
+			if group != "default" {
+				group = "default"
 			} else {
 				break Loop
 			}
 		default:
 			command := commands[cmd]
 			if command != nil {
-				group = command.run(&state, group, args, reader)
+				group = command.run(state, group, args, reader)
+				err := WriteDatabase(dbPath, userPass, state)
+				if err != nil {
+					println("Error writing to database: " + err.Error())
+				}
 			} else if len(cmd) > 0 {
 				println("Unknown command: " + cmd)
 			}
@@ -156,5 +160,5 @@ func main() {
 	}
 
 	println("Welcome, go-hash at your service.")
-	runCliLoop(state, userPass)
+	runCliLoop(&state, dbFilePath, userPass)
 }
