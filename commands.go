@@ -64,8 +64,13 @@ func (cmd createCommand) run(state *State, group string, args string, reader *bu
 		newEntry := arg
 		if len(args) > 0 {
 			entries, _ := (*state)[group]
-			entry := createNewEntry(newEntry, reader)
-			(*state)[group] = append(entries, entry)
+			entryExists := isEntryIn(entries, newEntry)
+			if entryExists {
+				println("Error: entry already exists")
+			} else {
+				entry := createNewEntry(newEntry, reader)
+				(*state)[group] = append(entries, entry)
+			}
 		} else {
 			println("Error: please provide a name for the group")
 		}
@@ -141,6 +146,15 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 	result.UpdatedAt = time.Now()
 
 	return
+}
+
+func isEntryIn(entries []LoginInfo, name string) bool {
+	for _, e := range entries {
+		if name == e.Name {
+			return true
+		}
+	}
+	return false
 }
 
 func generatePassword() string {

@@ -24,8 +24,8 @@ type LoginInfo struct {
 type State map[string][]LoginInfo
 
 func (info *LoginInfo) String() string {
-	return fmt.Sprintf("name: %s, username: %s, updatedAt: %s, description: %s\n",
-		info.Name, info.Username, info.UpdatedAt, info.Description)
+	return fmt.Sprintf("name: %s, username: %s, URL: %s, updatedAt: %s, description: %s\n",
+		info.Name, info.Username, info.URL, info.UpdatedAt, info.Description)
 }
 
 func (info *LoginInfo) bytes() []byte {
