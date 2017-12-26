@@ -18,10 +18,12 @@ type command interface {
 
 type lsCommand struct{}
 type createCommand struct{}
+type groupCommand struct{}
 
 var commands = map[string]command{
 	"ls":     lsCommand{},
 	"create": createCommand{},
+	"group":  groupCommand{},
 }
 
 func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
@@ -50,16 +52,11 @@ func (cmd createCommand) run(state *State, group string, args string, reader *bu
 	switch subCmd {
 	case "group":
 		newGroup := arg
-		if len(newGroup) > 0 {
-			_, ok := (*state)[newGroup]
-			if !ok {
-				(*state)[newGroup] = []LoginInfo{}
-				return newGroup
-			}
-			println("Error: group already exists")
-		} else {
-			println("Error: please provide a name for the group")
+		ok := createNewGroup(state, newGroup)
+		if ok {
+			return newGroup
 		}
+		return group
 	case "entry":
 		newEntry := arg
 		if len(args) > 0 {
@@ -80,22 +77,69 @@ func (cmd createCommand) run(state *State, group string, args string, reader *bu
 	return group
 }
 
-func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
-	read := func(prompt string) string {
-		print(prompt)
-		a, err := reader.ReadString('\n')
-		if err != nil {
-			panic(err)
-		}
-		return strings.TrimSpace(a)
+func (cmd groupCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+	groupName := args
+	_, groupExists := (*state)[groupName]
+	if groupExists {
+		return groupName
 	}
 
-	username := read("Enter username: ")
+	var answer bool
+	for {
+		yn := strings.ToLower(read(reader, "Group does not exist, do you want to create it? [y/n]: "))
+		if len(yn) == 0 || yn == "y" {
+			answer = true
+			break
+		} else if yn == "n" {
+			answer = false
+			break
+		} else {
+			println("Please answer y or n (no answer means y)")
+		}
+	}
+
+	if answer {
+		for {
+			ok := createNewGroup(state, groupName)
+			if ok {
+				return groupName
+			}
+			groupName = read(reader, "Please enter another name for the group: ")
+		}
+	}
+	return group
+}
+
+func createNewGroup(state *State, name string) bool {
+	if len(name) > 0 {
+		_, ok := (*state)[name]
+		if !ok {
+			(*state)[name] = []LoginInfo{}
+			return true
+		}
+		println("Error: group already exists")
+	} else {
+		println("Error: please provide a name for the group")
+	}
+	return false
+}
+
+func read(reader *bufio.Reader, prompt string) string {
+	print(prompt)
+	a, err := reader.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	return strings.TrimSpace(a)
+}
+
+func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
+	username := read(reader, "Enter username: ")
 
 	var URL string
 	goodURL := false
 	for !goodURL {
-		URL = read("Enter URL: ")
+		URL = read(reader, "Enter URL: ")
 		if len(URL) > 0 {
 			_, err := url.Parse(URL)
 			if err != nil {
@@ -108,12 +152,12 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 		}
 	}
 
-	description := read("Enter description: ")
+	description := read(reader, "Enter description: ")
 
 	var password string
 	answerAccepted := false
 	for !answerAccepted {
-		answer := strings.ToLower(read("Generate password? [y/n]: "))
+		answer := strings.ToLower(read(reader, "Generate password? [y/n]: "))
 		if len(answer) == 0 || answer == "y" {
 			password = generatePassword()
 			fmt.Printf("Generated password for %s!\n", name)
