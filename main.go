@@ -1,68 +1,30 @@
 package main
 
 import (
-	"os"
-	"golang.org/x/crypto/bcrypt"
-	"github.com/mitchellh/go-homedir"
+	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
+	"os"
+	"strings"
+	"syscall"
+
+	"github.com/mitchellh/go-homedir"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
-type ErrMessage struct {
-	err     error
-	message string
-}
-
-func exitIfError(errMessage *ErrMessage) {
-	if errMessage.err != nil || errMessage.message != "" {
-		var message string
-		if errMessage.err != nil {
-			message = errMessage.err.Error()
-		} else {
-			message = errMessage.message
-		}
-
-		println("Error: " + message)
-		os.Exit(1)
-	}
+func init() {
+	log.SetOutput(ioutil.Discard)
+	log.SetFlags(0)
 }
 
 func getGoHashFilePath() string {
-	home, err := homedir.Dir()
-	exitIfError(&ErrMessage{err: err})
-	return home + "/.go-hash"
-}
-
-func writeHash(input string) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(input), 12)
-	exitIfError(&ErrMessage{err: err})
-
-	filePath := getGoHashFilePath()
-	file, err := os.Create(filePath)
-	exitIfError(&ErrMessage{err: err})
-	defer file.Close()
-
-	_, err = file.Write(hash)
-	exitIfError(&ErrMessage{err: err})
-	err = file.Sync()
-	exitIfError(&ErrMessage{err: err})
-
-	fmt.Printf("Saved hash at %s\n", file.Name())
-}
-
-func checkHash(input string) {
-	filePath := getGoHashFilePath()
-	file, err := os.Open(filePath)
-	exitIfError(&ErrMessage{err: err})
-	defer file.Close()
-	hash, err := ioutil.ReadAll(file)
-
-	if err = bcrypt.CompareHashAndPassword(hash, []byte(input)); err != nil {
-		println("Error: hash could not be verified")
-		os.Exit(42)
-	} else {
-		println("MATCH!")
+	home, err := homedir.Expand("~/.go-hash")
+	if err != nil {
+		panic(err)
 	}
+	return home
 }
 
 func showUsage() {
@@ -72,22 +34,112 @@ func showUsage() {
 		"  check <content>")
 }
 
+func createPassword() string {
+	for i := 0; i < 10; i++ {
+		print("Please enter a master password: ")
+		pass, err := terminal.ReadPassword(int(syscall.Stdin))
+		println("")
+		if err != nil {
+			panic(err)
+		}
+		if len(pass) > 7 {
+			for i := 0; i < 3; i++ {
+				print("Re-enter the password: ")
+				pass2, err := terminal.ReadPassword(int(syscall.Stdin))
+				println("")
+				if err != nil {
+					panic(err)
+				}
+				if len(pass2) == 0 {
+					break
+				}
+				if bytes.Equal(pass, pass2) {
+					return string(pass)
+				}
+				println("No match! Try again or just hit Enter to start again.")
+			}
+		} else {
+			println("Password too short! Please use at least 8 characters")
+		}
+	}
+	panic("Too many attempts!")
+}
+
+func openDatabase(dbFilePath string) (state State, userPass string) {
+	for i := 0; i < 5; i++ {
+		print("Please enter your master password: ")
+		bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
+		println("")
+		if err != nil {
+			panic(err)
+		}
+		userPass = string(bytePassword)
+		state, err = ReadDatabase(dbFilePath, userPass)
+		if err != nil {
+			println("An error occurred: " + err.Error())
+		} else {
+			return
+		}
+	}
+	panic("Too many attempts!")
+}
+
+func runCliLoop(state State, userPass string) {
+	prompt := "$go-hash> "
+	reader := bufio.NewReader(os.Stdin)
+
+Loop:
+	for {
+		print(prompt)
+		cmd, err := reader.ReadString('\n')
+		switch strings.TrimSpace(cmd) {
+		case "write":
+			err = WriteDatabase(getGoHashFilePath(), userPass, &state)
+			if err != nil {
+				println("Error: " + err.Error())
+			}
+		case "ls":
+			if len(state) == 0 {
+				println("Empty database")
+			} else {
+				for group, entries := range state {
+					fmt.Printf("Group: %s (%d entries)\n", group, len(entries))
+					for _, e := range entries {
+						println("  - " + e.String())
+					}
+				}
+			}
+		case "exit":
+			break Loop
+		default:
+			print("Unknown command: " + cmd)
+		}
+	}
+}
+
 func main() {
-	if len(os.Args) != 3 {
-		println("Error: Wrong number of arguments")
-		showUsage()
-		os.Exit(-1)
+	var userPass string
+	var state State
+	println("Go-Hash version " + DBVERSION)
+	println("")
+
+	dbFilePath := getGoHashFilePath()
+	dbFile, err := os.Open(dbFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			println("No database exists yet, to create one, you need to provide a strong password first.")
+			println("A strong password could be a phrase you could remember easily but that is hard to guess.")
+			println("Make sure to include both upper and lower-case letters, numbers and special characters like ? and @\n")
+			userPass = createPassword()
+		} else {
+			panic(err)
+		}
+	} else {
+		// the DB exists, check if the user can open it
+		dbFile.Close()
+		state, userPass = openDatabase(dbFilePath)
 	}
 
-	cmd := os.Args[1]
-
-	switch cmd {
-	case "write":
-		writeHash(os.Args[2])
-	case "check":
-		checkHash(os.Args[2])
-	default:
-		println("Unknown command: " + cmd)
-		os.Exit(-1)
-	}
+	println("Welcome, go-hash at your service.")
+	runCliLoop(state, userPass)
 }
