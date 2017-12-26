@@ -11,33 +11,33 @@ import (
 
 // LoginInfo single entry containing login information for a particular website.
 type LoginInfo struct {
-	name      string
-	url       string
-	username  string
-	password  string
-	updatedAt time.Time
+	Name      string
+	Url       string
+	Username  string
+	Password  string
+	UpdatedAt time.Time
 }
 
 // State the actual login information persisted by the database.
 type State map[string][]LoginInfo
 
 func (info *LoginInfo) String() string {
-	return "name: " + info.name + ", url: " + info.url +
-		", username: " + info.username +
-		", password: " + info.password +
-		", updatedAt: " + info.updatedAt.String()
+	return "name: " + info.Name + ", url: " + info.Url +
+		", username: " + info.Username +
+		", password: " + info.Password +
+		", updatedAt: " + info.UpdatedAt.String()
 }
 
 func (info *LoginInfo) bytes() []byte {
 	var result bytes.Buffer
 	enc := base64.StdEncoding.EncodeToString
-	result.WriteString(enc([]byte(info.name)))
+	result.WriteString(enc([]byte(info.Name)))
 	result.WriteString(" ")
-	result.WriteString(enc([]byte(info.url)))
+	result.WriteString(enc([]byte(info.Url)))
 	result.WriteString(" ")
-	result.WriteString(enc([]byte(info.username)))
+	result.WriteString(enc([]byte(info.Username)))
 	result.WriteString(" ")
-	result.WriteString(enc([]byte(info.password)))
+	result.WriteString(enc([]byte(info.Password)))
 	return result.Bytes()
 }
 
@@ -65,10 +65,10 @@ func decodeLoginInfo(info []byte) (LoginInfo, error) {
 		return result, err
 	}
 
-	result.name = string(name)
-	result.url = string(url)
-	result.username = string(username)
-	result.password = string(password)
+	result.Name = string(name)
+	result.Url = string(url)
+	result.Username = string(username)
+	result.Password = string(password)
 	return result, nil
 }
 

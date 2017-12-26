@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/renatoathaydes/go-hash/encryption"
 )
@@ -27,28 +29,37 @@ func WriteDatabase(filePath, password string, data *State) error {
 	}
 
 	salt := encryption.GenerateSalt()
+	log.Printf("Writing salt: %x", salt)
 	P := encryption.PasswordHash(password, salt)
+	log.Printf("Calculated P: %x", P)
 	H := encryption.CheckSum(P)
+	log.Printf("Writing H: %x", H)
 
 	K := encryption.GenerateRandomBytes(32)
 	L := encryption.GenerateRandomBytes(32)
+	log.Printf("K = %x", K)
+	log.Printf("L = %x", L)
 
 	B1, err := encryption.Encrypt(P, K[:16])
 	if err != nil {
 		return err
 	}
+	log.Printf("Writing B1 = %x", B1)
 	B2, err := encryption.Encrypt(P, K[16:])
 	if err != nil {
 		return err
 	}
+	log.Printf("Writing B2 = %x", B2)
 	B3, err := encryption.Encrypt(P, L[:16])
 	if err != nil {
 		return err
 	}
+	log.Printf("Writing B3 = %x", B3)
 	B4, err := encryption.Encrypt(P, L[16:])
 	if err != nil {
 		return err
 	}
+	log.Printf("Writing B4 = %x", B4)
 
 	encryptedState, err := encryption.Encrypt(K, stateBytes)
 	if err != nil {
@@ -56,9 +67,11 @@ func WriteDatabase(filePath, password string, data *State) error {
 	}
 
 	encryptedStateLen := len(encryptedState)
+	log.Printf("Writing encrypted payload with length = %d", encryptedStateLen)
 	lenE := []byte(fmt.Sprintf("%4x", encryptedStateLen))
 
 	mac := encryption.Hmac(L, append(salt, stateBytes...))
+	log.Printf("Generated HMAC with length %d", len(mac))
 
 	fileOffset := 0
 
@@ -95,76 +108,93 @@ func ReadDatabase(filePath string, password string) (State, error) {
 		return nil, errors.New("Unsupported database version")
 	}
 
+	log.Println("Reading salt")
 	salt := make([]byte, 32, 32)
 	_, err = file.ReadAt(salt, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
 	fileOffset += 32
+	log.Printf("Salt read successfully, reading H. Salt = %x", salt)
 
-	H := make([]byte, 512, 512)
+	H := make([]byte, 64, 64)
 	_, err = file.ReadAt(H, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += 512
+	fileOffset += 64
+	log.Printf("H read successfully, calculating P. H = %x", H)
 
 	P := encryption.PasswordHash(password, salt)
+	log.Printf("Calculated P = %x", P)
 	expectedH := encryption.CheckSum(P)
-
+	log.Printf("Expected H = %x", expectedH)
 	if !bytes.Equal(H, expectedH) {
 		return nil, errors.New("Wrong password or corrupt database")
 	}
+	log.Println("Validated P, reading Bs")
 
-	B1 := make([]byte, 64, 64)
+	B1 := make([]byte, 32, 32)
 	_, err = file.ReadAt(B1, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += 64
+	fileOffset += 32
+	log.Printf("Read B1: %x", B1)
 
-	B2 := make([]byte, 64, 64)
+	B2 := make([]byte, 32, 32)
 	_, err = file.ReadAt(B2, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += 64
+	fileOffset += 32
+	log.Printf("Read B2: %x", B2)
 
-	B3 := make([]byte, 64, 64)
+	B3 := make([]byte, 32, 32)
 	_, err = file.ReadAt(B3, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += 64
+	fileOffset += 32
+	log.Printf("Read B3: %x", B3)
 
-	B4 := make([]byte, 64, 64)
+	B4 := make([]byte, 32, 32)
 	_, err = file.ReadAt(B4, fileOffset)
 	if err != nil {
 		return nil, dbError
 	}
-	fileOffset += 64
+	fileOffset += 32
+	log.Printf("Read B4: %x", B4)
 
 	decryptedB1, err := encryption.Decrypt(P, B1)
 	if err != nil {
 		return nil, dbError
 	}
+	log.Println("Decrypted B1")
 	decryptedB2, err := encryption.Decrypt(P, B2)
 	if err != nil {
 		return nil, dbError
 	}
+	log.Println("Decrypted B2")
 
 	decryptedB3, err := encryption.Decrypt(P, B3)
 	if err != nil {
 		return nil, dbError
 	}
+	log.Println("Decrypted B3")
 
 	decryptedB4, err := encryption.Decrypt(P, B4)
 	if err != nil {
 		return nil, dbError
 	}
+	log.Println("Decrypted B4")
 
 	K := append(decryptedB1, decryptedB2...)
 	L := append(decryptedB3, decryptedB4...)
+
+	log.Printf("Got K=%x", K)
+	log.Printf("Got L=%x", L)
+	log.Printf("Reading length of encrypted payload")
 
 	payloadLen := make([]byte, 4, 4)
 	_, err = file.ReadAt(payloadLen, fileOffset)
@@ -173,11 +203,12 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	}
 	fileOffset += 4
 
-	plen, err := strconv.ParseInt(string(payloadLen), 16, 0)
+	plen, err := strconv.ParseInt(strings.TrimSpace(string(payloadLen)), 16, 0)
 	if err != nil {
 		return nil, dbError
 	}
 
+	log.Printf("Reading encrypted payload with len = %d", plen)
 	payload := make([]byte, plen, plen)
 	_, err = file.ReadAt(payload, fileOffset)
 	if err != nil {
@@ -185,6 +216,7 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	}
 	fileOffset += plen
 
+	log.Printf("Decrypting payload")
 	stateBytes, err := encryption.Decrypt(K, payload)
 	if err != nil {
 		return nil, dbError
@@ -195,8 +227,8 @@ func ReadDatabase(filePath string, password string) (State, error) {
 		return nil, err
 	}
 
-	// the rest of the file is the HMAC
 	remainingLen := fileStat.Size() - fileOffset
+	log.Printf("Reading HMAC at end of file, HMAC len = %d", remainingLen)
 	if remainingLen <= 0 {
 		return nil, dbError
 	}
@@ -208,9 +240,11 @@ func ReadDatabase(filePath string, password string) (State, error) {
 
 	expectedMac := encryption.Hmac(L, append(salt, stateBytes...))
 
+	log.Printf("Verifying HMAC")
 	if ok := encryption.VerifyHmac(expectedMac, mac); !ok {
 		return nil, dbError
 	}
+	log.Printf("Database read successfully")
 
 	// decryption and validation completed successfully!
 	return decodeState(stateBytes)
