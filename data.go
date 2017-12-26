@@ -5,27 +5,27 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
 
 // LoginInfo single entry containing login information for a particular website.
 type LoginInfo struct {
-	Name      string
-	Url       string
-	Username  string
-	Password  string
-	UpdatedAt time.Time
+	Name        string
+	URL         string
+	Username    string
+	Password    string
+	Description string
+	UpdatedAt   time.Time
 }
 
 // State the actual login information persisted by the database.
 type State map[string][]LoginInfo
 
 func (info *LoginInfo) String() string {
-	return "name: " + info.Name + ", url: " + info.Url +
-		", username: " + info.Username +
-		", password: " + info.Password +
-		", updatedAt: " + info.UpdatedAt.String()
+	return fmt.Sprintf("name: %s, username: %s, updatedAt: %s, description: %s\n",
+		info.Name, info.Username, info.UpdatedAt, info.Description)
 }
 
 func (info *LoginInfo) bytes() []byte {
@@ -33,18 +33,20 @@ func (info *LoginInfo) bytes() []byte {
 	enc := base64.StdEncoding.EncodeToString
 	result.WriteString(enc([]byte(info.Name)))
 	result.WriteString(" ")
-	result.WriteString(enc([]byte(info.Url)))
+	result.WriteString(enc([]byte(info.URL)))
 	result.WriteString(" ")
 	result.WriteString(enc([]byte(info.Username)))
 	result.WriteString(" ")
 	result.WriteString(enc([]byte(info.Password)))
+	result.WriteString(" ")
+	result.WriteString(enc([]byte(info.Description)))
 	return result.Bytes()
 }
 
 func decodeLoginInfo(info []byte) (LoginInfo, error) {
 	result := LoginInfo{}
 	parts := strings.SplitN(string(info), " ", 4)
-	if len(parts) != 4 {
+	if len(parts) != 5 {
 		return result, errors.New("Invalid database format")
 	}
 	dec := base64.StdEncoding.DecodeString
@@ -64,11 +66,16 @@ func decodeLoginInfo(info []byte) (LoginInfo, error) {
 	if err != nil {
 		return result, err
 	}
+	description, err := dec(parts[4])
+	if err != nil {
+		return result, err
+	}
 
 	result.Name = string(name)
-	result.Url = string(url)
+	result.URL = string(url)
 	result.Username = string(username)
 	result.Password = string(password)
+	result.Description = string(description)
 	return result, nil
 }
 

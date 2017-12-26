@@ -15,7 +15,7 @@ func emptyDB() State {
 func simpleDB() State {
 	return State{
 		"default": []LoginInfo{
-			{Name: "google", Url: "google.com", Password: "super password"},
+			{Name: "google", URL: "google.com", Password: "super password"},
 		},
 	}
 }
@@ -25,12 +25,12 @@ var knownTime, _ = time.Parse("yyyy-MM-dd", "2015-09-04")
 func largeDB() State {
 	return State{
 		"default": []LoginInfo{
-			{Name: "google", Url: "google.com", Password: "super password"},
+			{Name: "google", URL: "google.com", Password: "super password"},
 		},
 		"Personal": []LoginInfo{
-			{Name: "github", Url: "github.com", Password: "easy password"},
+			{Name: "github", URL: "github.com", Password: "easy password"},
 			{Name: "facebook", Password: "other password", UpdatedAt: knownTime},
-			{Name: "google", Url: "google.com", Password: "new password", UpdatedAt: knownTime},
+			{Name: "google", URL: "google.com", Password: "new password", UpdatedAt: knownTime, Description: "very nice one"},
 		},
 		"Work": []LoginInfo{
 			{Name: "amazon", Password: "difficult password"},
