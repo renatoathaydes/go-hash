@@ -100,7 +100,7 @@ To create a group called `personal`, for example:
 $go-hash> create group personal
 ```
 
-After typing that, you will enter the new group, so you should see the following prompt:
+After typing that, you will enter the new group automatically, so you should see the following prompt:
 
 ```
 $go-hash:personal>
@@ -109,6 +109,12 @@ $go-hash:personal>
 To exit the group, type `exit`.
 
 While within a group, any actions you perform on entries apply under the current group. If you're not within a group, you're assumed to be under the `default` group.
+
+To enter a group that already exists, say the `personal` group:
+
+```
+$go-hash> group personal
+```
 
 #### Creating entries
 
@@ -129,6 +135,7 @@ Enter URL: github.com
 Enter description: My GitHub credentials
 Generate password [y/n]: y
 Generated Password for github.com!
+To copy it to the clipboard, type 'cp github'
 $go-hash> 
 ```
 
