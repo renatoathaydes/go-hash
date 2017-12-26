@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type command interface {
@@ -113,7 +116,12 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 			answerAccepted = true
 		} else if answer == "n" {
 			for !answerAccepted {
-				password = read("Please enter a password (at least 4 characters): ")
+				print("Please enter a password (at least 4 characters): ")
+				password, err := terminal.ReadPassword(int(syscall.Stdin))
+				println("")
+				if err != nil {
+					panic(err)
+				}
 				if len(password) < 4 {
 					println("Password too short, please try again!")
 				} else {
@@ -136,5 +144,6 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 }
 
 func generatePassword() string {
+	// TODO
 	return ""
 }
