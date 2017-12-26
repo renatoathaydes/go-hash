@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -84,35 +83,51 @@ func openDatabase(dbFilePath string) (state State, userPass string) {
 	panic("Too many attempts!")
 }
 
+func splitTrimN(text string, max int) []string {
+	result := make([]string, max)
+	parts := strings.SplitN(text, " ", max)
+	for i, c := range parts {
+		result[i] = strings.TrimSpace(c)
+	}
+	return result
+}
+
 func runCliLoop(state State, userPass string) {
-	prompt := "$go-hash> "
+	group := ""
 	reader := bufio.NewReader(os.Stdin)
+	prompt := func() string {
+		var modifier string
+		if len(group) > 0 {
+			modifier = ":" + group
+		}
+		return "$go-hash" + modifier + "> "
+	}
 
 Loop:
 	for {
-		print(prompt)
-		cmd, err := reader.ReadString('\n')
-		switch strings.TrimSpace(cmd) {
-		case "write":
-			err = WriteDatabase(getGoHashFilePath(), userPass, &state)
-			if err != nil {
-				println("Error: " + err.Error())
-			}
-		case "ls":
-			if len(state) == 0 {
-				println("Empty database")
-			} else {
-				for group, entries := range state {
-					fmt.Printf("Group: %s (%d entries)\n", group, len(entries))
-					for _, e := range entries {
-						println("  - " + e.String())
-					}
-				}
-			}
+		print(prompt())
+		rawCmd, err := reader.ReadString('\n')
+		if err != nil {
+			panic(err)
+		}
+		parts := splitTrimN(rawCmd, 2)
+		cmd := parts[0]
+		args := parts[1]
+
+		switch cmd {
 		case "exit":
-			break Loop
+			if len(group) > 0 {
+				group = ""
+			} else {
+				break Loop
+			}
 		default:
-			print("Unknown command: " + cmd)
+			command := commands[cmd]
+			if command != nil {
+				group = command.run(&state, group, args, reader)
+			} else if len(cmd) > 0 {
+				println("Unknown command: " + cmd)
+			}
 		}
 	}
 }
