@@ -76,7 +76,7 @@ Type `help` to see how to use go-hash.
 
 #### Listing entries
 
-In the go-hash prompt, you can list existing groups and entries with the `ls` command:
+In the go-hash prompt, you can list existing groups with the `ls` command:
 
 ```
 go-hash» ls
@@ -85,11 +85,22 @@ go-hash» ls
 You should see the following output, indicating you have no entries in your database (but there's a group called `default`):
 
 ```
-default:
-  <empty>
+default (empty)
 ```
 
-When you enter a group (you'll see how in the next section), the `ls` command will show only entries within that group.
+To list the entries of a particular group, say `personal`, just give the name of the group as an argument to `ls`:
+
+```
+go-hash» ls personal
+```
+
+To see a particular entry within the current group, use the `entry` command:
+
+```
+go-hash» entry github
+```
+
+> An entry's password is never displayed. go-hash only allows you to copy the password to the clipboard, as explained later.
 
 #### Groups
 
@@ -128,6 +139,8 @@ go-hash» entry github
 
 go-hash will then ask you for the information that you want to store.
 
+> As we saw above, if the entry already exists, go-hash will display information about the entry rather than create it.
+
 For example, when I create an entry for my GitHub account, the prompt session could look like this:
 
 ```
@@ -142,7 +155,7 @@ To copy it to the clipboard, type 'cp github'.
 go-hash»
 ```
 
-If you choose to not generate a password, you can simply enter it manually, but you should probably let go-hash generate a strong password for you! You don't even need to know passwords (except for the go-hash master password, of course), as we'll see later.
+If you choose to not generate a password, you can simply enter it manually, but you should probably let go-hash generate a strong password for you! You don't even need to know your passwords (except for the go-hash master password, of course) when you use go-hash.
 
 #### Using entries
 

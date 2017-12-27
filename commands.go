@@ -52,25 +52,39 @@ func usage(w io.Writer) {
 }
 
 func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
-	if len(*state) == 0 {
-		println("default:\n  <empty>")
-	} else {
-		for group, entries := range *state {
-			fmt.Printf("Group: %s (%d entries)\n", group, len(entries))
-			if len(entries) == 0 {
-				println("  <empty>")
-			} else {
+	if len(args) > 0 {
+		groupName := args
+		entries, ok := (*state)[groupName]
+		if ok {
+			fmt.Printf("Group %s:\n", groupDescription(groupName, &entries))
+			if len(entries) > 0 {
 				for _, e := range entries {
 					println("  " + e.String())
 				}
 			}
+		} else {
+			println("Group does not exist: " + groupName)
+		}
+	} else {
+		groupLen := len(*state)
+		switch groupLen {
+		case 0:
+			println("1 group:")
+			fmt.Printf("  %s\n", groupDescription("default", &[]LoginInfo{}))
+		case 1:
+			println("1 group:")
+		default:
+			fmt.Printf("%d groups:\n", groupLen)
+		}
+		for groupName, entries := range *state {
+			fmt.Printf("  %s\n", groupDescription(groupName, &entries))
 		}
 	}
 	return group
 }
 
 func (cmd lsCommand) help() string {
-	return "shows all groups and entries in the database."
+	return "shows all groups, or a group's entries if given a group name."
 }
 
 func (cmd entryCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
@@ -124,6 +138,20 @@ func (cmd groupCommand) run(state *State, group string, args string, reader *buf
 
 func (cmd groupCommand) help() string {
 	return "enters/creates a group."
+}
+
+func groupDescription(name string, entries *[]LoginInfo) string {
+	var entriesSize string
+	entriesLen := len(*entries)
+	switch entriesLen {
+	case 0:
+		entriesSize = "empty"
+	case 1:
+		entriesSize = "1 entry"
+	default:
+		entriesSize = fmt.Sprintf("%d entries", entriesLen)
+	}
+	return fmt.Sprintf("%-16s (%s)", name, entriesSize)
 }
 
 func yesNoQuestion(question string, reader *bufio.Reader) bool {
