@@ -19,13 +19,13 @@ type command interface {
 }
 
 type lsCommand struct{}
-type createCommand struct{}
+type entryCommand struct{}
 type groupCommand struct{}
 
 var commands = map[string]command{
-	"ls":     lsCommand{},
-	"create": createCommand{},
-	"group":  groupCommand{},
+	"ls":    lsCommand{},
+	"group": groupCommand{},
+	"entry": entryCommand{},
 }
 
 func createCompleter() *readline.PrefixCompleter {
@@ -40,7 +40,7 @@ func createCompleter() *readline.PrefixCompleter {
 }
 
 func usage(w io.Writer) {
-	io.WriteString(w, "commands:\n")
+	io.WriteString(w, "Commands:\n")
 	io.WriteString(w, createCompleter().Tree("    "))
 }
 
@@ -62,70 +62,63 @@ func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.
 	return group
 }
 
-func (cmd createCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
-	parts := splitTrimN(args, 2)
-	subCmd := parts[0]
-	arg := parts[1]
-
-	switch subCmd {
-	case "group":
-		newGroup := arg
-		ok := createNewGroup(state, newGroup)
-		if ok {
-			return newGroup
-		}
-		return group
-	case "entry":
-		newEntry := arg
-		if len(args) > 0 {
-			entries, _ := (*state)[group]
-			entryExists := isEntryIn(entries, newEntry)
-			if entryExists {
-				println("Error: entry already exists")
-			} else {
+func (cmd entryCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+	newEntry := args
+	if len(newEntry) > 0 {
+		entries, _ := (*state)[group]
+		entry, found := findEntryIn(entries, newEntry)
+		if found {
+			println(entry.String())
+		} else {
+			newEntryWanted := yesNoQuestion("Entry does not exist, do you want to create it? [y/n]: ", reader)
+			if newEntryWanted {
 				entry := createNewEntry(newEntry, reader)
 				(*state)[group] = append(entries, entry)
 			}
-		} else {
-			println("Error: please provide a name for the group")
 		}
-	default:
-		println("Error: cannot create " + subCmd)
+	} else {
+		println("Error: please provide a name for the entry")
 	}
 	return group
 }
 
 func (cmd groupCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
 	groupName := args
-	_, groupExists := (*state)[groupName]
-	if groupExists {
-		return groupName
+	if len(groupName) > 0 {
+		_, groupExists := (*state)[groupName]
+		if groupExists {
+			return groupName
+		}
+
+		newGroupWanted := yesNoQuestion("Group does not exist, do you want to create it? [y/n]: ", reader)
+		if newGroupWanted {
+			for {
+				ok := createNewGroup(state, groupName)
+				if ok {
+					return groupName
+				}
+				groupName = read(reader, "Please enter another name for the group: ")
+			}
+		}
+	} else {
+		println("Error: please provide a name for the group")
 	}
 
-	var answer bool
+	return group
+}
+
+func yesNoQuestion(question string, reader *bufio.Reader) bool {
 	for {
-		yn := strings.ToLower(read(reader, "Group does not exist, do you want to create it? [y/n]: "))
+		yn := strings.ToLower(read(reader, question))
 		if len(yn) == 0 || yn == "y" {
-			answer = true
-			break
+			return true
 		} else if yn == "n" {
-			answer = false
-			break
+			return false
 		} else {
 			println("Please answer y or n (no answer means y)")
 		}
 	}
 
-	if answer {
-		for {
-			ok := createNewGroup(state, groupName)
-			if ok {
-				return groupName
-			}
-			groupName = read(reader, "Please enter another name for the group: ")
-		}
-	}
-	return group
 }
 
 func createNewGroup(state *State, name string) bool {
@@ -210,13 +203,13 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 	return
 }
 
-func isEntryIn(entries []LoginInfo, name string) bool {
+func findEntryIn(entries []LoginInfo, name string) (LoginInfo, bool) {
 	for _, e := range entries {
 		if name == e.Name {
-			return true
+			return e, true
 		}
 	}
-	return false
+	return LoginInfo{}, false
 }
 
 func generatePassword() string {
