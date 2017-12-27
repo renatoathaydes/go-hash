@@ -177,6 +177,10 @@ func main() {
 		state, userPass = openDatabase(dbFilePath)
 	}
 
+	if len(state) == 0 {
+		state["default"] = []LoginInfo{}
+	}
+
 	println("\nWelcome, go-hash at your service.\n")
 	runCliLoop(&state, dbFilePath, userPass)
 }

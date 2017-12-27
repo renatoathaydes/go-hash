@@ -25,12 +25,15 @@ type lsCommand struct{}
 type entryCommand struct{}
 type groupCommand struct{}
 type removeEntryCommand struct{}
+type removeGroupCommand struct{}
 
 var commands = map[string]command{
 	"ls":    lsCommand{},
 	"group": groupCommand{},
 	"entry": entryCommand{},
 	"rm":    removeEntryCommand{},
+	"re":    removeEntryCommand{},
+	"rg":    removeGroupCommand{},
 }
 
 func createCompleter() *readline.PrefixCompleter {
@@ -45,7 +48,7 @@ func createCompleter() *readline.PrefixCompleter {
 }
 
 func usage(w io.Writer) {
-	io.WriteString(w, "go-hash commands:\n")
+	io.WriteString(w, "go-hash commands:\n\n")
 	for cmd, c := range commands {
 		io.WriteString(w, fmt.Sprintf("  %-8s %s\n", cmd, c.help()))
 	}
@@ -70,13 +73,10 @@ func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.
 	} else {
 		groupLen := len(*state)
 		switch groupLen {
-		case 0:
-			println("1 group:\n")
-			fmt.Printf("  %s\n", groupDescription("default", &[]LoginInfo{}))
 		case 1:
-			println("1 group:\n")
+			println("There is 1 group:\n")
 		default:
-			fmt.Printf("%d groups:\n\n", groupLen)
+			fmt.Printf("There are %d groups:\n\n", groupLen)
 		}
 		for groupName, entries := range *state {
 			fmt.Printf("  %s\n", groupDescription(groupName, &entries))
@@ -164,7 +164,46 @@ func (cmd removeEntryCommand) run(state *State, group string, args string, reade
 }
 
 func (cmd removeEntryCommand) help() string {
-	return "enters/creates a group."
+	return "removes an entry of the current group."
+}
+
+func (cmd removeGroupCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+	groupName := args
+	if len(groupName) == 0 {
+		println("Error: please provide the name of the group to remove.")
+	} else {
+		entries, ok := (*state)[groupName]
+		entriesLen := len(entries)
+		if ok {
+			goAhead := entriesLen == 0 // if there are no entries, don't bother asking for confirmation
+			if groupName == "default" {
+				if !goAhead {
+					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove all (%d) entries of the default group? [y/n]: ",
+						entriesLen), reader)
+					if goAhead {
+						(*state)[groupName] = []LoginInfo{}
+					}
+				} else {
+					println("Warning: cannot delete the default group and there are no entries to remove.")
+				}
+			} else {
+				if !goAhead {
+					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove group '%s' and all of its (%d) entries? [y/n]: ",
+						groupName, entriesLen), reader)
+				}
+				if goAhead {
+					delete(*state, groupName)
+				}
+			}
+		} else {
+			println("Error: group does not exist.")
+		}
+	}
+	return group
+}
+
+func (cmd removeGroupCommand) help() string {
+	return "removes a group, along with all of its entries."
 }
 
 func groupDescription(name string, entries *[]LoginInfo) string {
