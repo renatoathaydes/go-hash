@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/chzyer/readline"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -26,6 +27,7 @@ type entryCommand struct{}
 type groupCommand struct{}
 type removeEntryCommand struct{}
 type removeGroupCommand struct{}
+type cpCommand struct{}
 
 var commands = map[string]command{
 	"ls":    lsCommand{},
@@ -34,6 +36,7 @@ var commands = map[string]command{
 	"rm":    removeEntryCommand{},
 	"re":    removeEntryCommand{},
 	"rg":    removeGroupCommand{},
+	"cp":    cpCommand{},
 }
 
 func createCompleter() *readline.PrefixCompleter {
@@ -206,6 +209,75 @@ func (cmd removeGroupCommand) help() string {
 	return "removes a group, along with all of its entries."
 }
 
+func (cmd cpCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+	parts := splitTrimN(args, 2)
+	field := parts[0]
+	entry := parts[1]
+	entries := (*state)[group]
+	const (
+		fieldUsername = iota
+		fieldPassword
+		fieldUnknown
+	)
+	fieldCase := fieldUnknown
+	switch field {
+	case "-p":
+		fieldCase = fieldPassword
+	case "-u":
+		fieldCase = fieldUsername
+	default:
+		println("Error: Unknown option: " + field)
+		println("Hint: valid options are: -p (password), -u (username)")
+		return group
+	}
+
+	showEntryHint := func() {
+		if len(entries) > 0 {
+			entryNames := make([]string, len(entries))
+			for i, e := range entries {
+				entryNames[i] = e.Name
+			}
+			fmt.Printf("Hint: under the current group, %s, the following entries exist: %s\n", group, strings.Join(entryNames, ", "))
+		} else if len(*state) > 1 {
+			println("Hint: there are no entries under the current group! " +
+				"To enter a group which contains entries, use the 'group' command. " +
+				"Type 'ls' to list all groups.")
+		} else {
+			println("Hint: there are no entries yet! You can create a new entry with the 'entry' command! " +
+				"For example, try typing 'entry gmail'")
+		}
+	}
+
+	if len(entry) == 0 {
+		println("Error: please provide an entry name")
+		showEntryHint()
+	} else {
+		entryIndex, found := findEntryIndex(&entries, entry)
+		if found {
+			var err error
+			switch fieldCase {
+			case fieldPassword:
+				err = clipboard.WriteAll(entries[entryIndex].Password)
+			case fieldUsername:
+				err = clipboard.WriteAll(entries[entryIndex].Username)
+			default:
+				panic("Unexpected field case")
+			}
+			if err != nil {
+				fmt.Printf("Error: unable to copy! Reason: %s\n", err.Error())
+			}
+		} else {
+			fmt.Printf("Error: entry '%s' does not exist\n", entry)
+			showEntryHint()
+		}
+	}
+	return group
+}
+
+func (cmd cpCommand) help() string {
+	return "Copies an entry's field to the clipboard. Fields: -p = password, -u = username."
+}
+
 func groupDescription(name string, entries *[]LoginInfo) string {
 	var entriesSize string
 	entriesLen := len(*entries)
@@ -248,15 +320,6 @@ func createNewGroup(state *State, name string) bool {
 	return false
 }
 
-func read(reader *bufio.Reader, prompt string) string {
-	print(prompt)
-	a, err := reader.ReadString('\n')
-	if err != nil {
-		panic(err)
-	}
-	return strings.TrimSpace(a)
-}
-
 func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 	username := read(reader, "Enter username: ")
 
@@ -285,16 +348,17 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 		if len(answer) == 0 || answer == "y" {
 			password = generatePassword()
 			fmt.Printf("Generated password for %s!\n", name)
-			fmt.Printf("To copy it to the clipboard, type 'cp %s'.\n", name)
+			fmt.Printf("Hint: To copy it to the clipboard, type 'cp -p %s'.\n", name)
 			answerAccepted = true
 		} else if answer == "n" {
 			for !answerAccepted {
 				print("Please enter a password (at least 4 characters): ")
-				password, err := terminal.ReadPassword(int(syscall.Stdin))
+				pass, err := terminal.ReadPassword(int(syscall.Stdin))
 				println("")
 				if err != nil {
 					panic(err)
 				}
+				password = string(pass)
 				if len(password) < 4 {
 					println("Password too short, please try again!")
 				} else {
@@ -335,4 +399,13 @@ func removeEntryFrom(entries *[]LoginInfo, name string) ([]LoginInfo, bool) {
 func generatePassword() string {
 	// TODO
 	return ""
+}
+
+func read(reader *bufio.Reader, prompt string) string {
+	print(prompt)
+	a, err := reader.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	return strings.TrimSpace(a)
 }

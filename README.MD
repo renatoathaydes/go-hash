@@ -8,10 +8,12 @@ Current status:
 - [x] database format implementation
 - [x] Create database
 - [ ] Load custom database
+- [ ] Generate random password
+- [ ] Clear clipboard some time after copying content to it
 - [x] CLI `ls` command
 - [x] CLI `entry` command
 - [x] CLI `group` command
-- [ ] CLI `cp` (copy) command
+- [x] CLI `cp` (copy) command
 - [x] CLI `rm` (remove entry) command
 - [x] CLI `rg` (remove group) command
 - [ ] CLI `goto` command
