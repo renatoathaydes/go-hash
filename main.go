@@ -106,7 +106,7 @@ func runCliLoop(state *State, dbPath string, userPass string) {
 		return fmt.Sprintf("\033[31mgo-hash%s»\033[0m ", modifier)
 	}
 
-	l, err := readline.NewEx(&readline.Config{
+	cli, err := readline.NewEx(&readline.Config{
 		Prompt:            prompt(),
 		AutoComplete:      createCompleter(),
 		InterruptPrompt:   "^C",
@@ -115,12 +115,12 @@ func runCliLoop(state *State, dbPath string, userPass string) {
 	if err != nil {
 		panic(err)
 	}
-	defer l.Close()
+	defer cli.Close()
 
 Loop:
 	for {
-		l.SetPrompt(prompt())
-		line, err := l.Readline()
+		cli.SetPrompt(prompt())
+		line, err := cli.Readline()
 		if err == readline.ErrInterrupt {
 			if len(line) == 0 {
 				break Loop
