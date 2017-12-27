@@ -7,13 +7,12 @@ Current status:
 - [x] database format definition
 - [x] database format implementation
 - [x] Create database
-- [ ] Load database
+- [ ] Load custom database
 - [x] CLI `ls` command
-- [x] CLI `create entry` command
-- [x] CLI `create group` command
+- [x] CLI `entry` command
 - [x] CLI `group` command
-- [ ] CLI `cp u` (copy username) command
-- [ ] CLI `cp p` (copy password) command
+- [ ] CLI `cp` (copy) command
+- [ ] CLI `rm` (remove) command
 - [ ] CLI `goto` command
 - [ ] CLI `rm entry` command
 - [ ] CLI `rm group` command
@@ -38,91 +37,93 @@ TBD
 
 ### Create/load a database
 
-#### Create a new database
-
-To create a new database in the default location (`$HOME/.go-hash`):
-
-```
-go-hash new
-```
-
-To create a new database in a custom location:
-
-```
-go-hash new /path/to/file
-```
-
-#### Load an existing database
-
-To load the database at the default location:
+The first time you run `go-hash`, a new database will be created in the default location (`$HOME/.go-hash`).
 
 ```
 go-hash
 ```
 
-> If the default database file does not exist, you will be asked to create one.
-
-To load a database from a custom location:
+To create a new database in a custom location, just provide the path to the new file for the database:
 
 ```
-go-hash load /path/to/file
+go-hash /path/to/file
 ```
+
+If the file already exists, go-hash will try to load it as an existing database.
 
 ### Interact with the go-hash prompt
 
-Once you've loaded a database file, you should enter the go-hash prompt, which looks like this:
+Once you've loaded a database file, you will be prompted to enter a master password for the database:
 
 ```
-$go-hash>
+Go-Hash version GH00
+
+No database exists yet, to create one, you need to provide a strong password first.
+A strong password could be a phrase you could remember easily but that is hard to guess.
+To make it harder to guess, include both upper and lower-case letters, numbers and special characters like ? and @.
+If you forget this password, there's no way to recover it or your data, so be careful!
+
+Please enter a master password:
 ```
+
+Once you've done that, you should enter the go-hash prompt:
+
+```
+go-hash»
+```
+
+Type `help` to see how to use go-hash.
 
 #### Listing entries
 
-In the go-hash prompt, you can list existing passwords, for example:
+In the go-hash prompt, you can list existing groups and entries with the `ls` command:
 
 ```
-$go-hash> ls
+go-hash» ls
 ```
 
-You should see the following output, indicating you have no entries in your database, but there's a group called `default`:
+You should see the following output, indicating you have no entries in your database (but there's a group called `default`):
 
 ```
 default:
   <empty>
 ```
 
+When you enter a group (you'll see how in the next section), the `ls` command will show only entries within that group.
+
 #### Groups
 
 go-hash stores information in groups. You don't need to create or enter a group, though, as a default group is used if none is specified.
 
-To create a group called `personal`, for example:
+But if you want to create a group called `personal`, for example:
 
 ```
-$go-hash> create group personal
+go-hash» group personal
 ```
 
 After typing that, you will enter the new group automatically, so you should see the following prompt:
 
 ```
-$go-hash:personal>
+go-hash:personal»
 ```
 
-To exit the group, type `exit`.
+To exit a group, type `exit`. If you're not within a group, typing `exit` will quit go-hash.
 
-While within a group, any actions you perform on entries apply under the current group. If you're not within a group, you're assumed to be under the `default` group.
+While within a group, any actions you perform on entries apply under the current group.
 
-To enter a group that already exists, say the `personal` group:
+Notice that to enter a group that already exists, say the `personal` group we've just created, you just need to type `group personal` again:
 
 ```
-$go-hash> group personal
+go-hash» group personal
+go-hash:personal»
 ```
 
 #### Creating entries
 
-To create a new entry called `github`, for example:
+To create a new entry called `github`, for example, use the `entry` command:
 
 ```
-$go-hash> create entry github
+go-hash» entry github
 ```
 
 go-hash will then ask you for the information that you want to store.
@@ -130,17 +131,18 @@ go-hash will then ask you for the information that you want to store.
 For example, when I create an entry for my GitHub account, the prompt session could look like this:
 
 ```
-$go-hash> create entry github
+go-hash» entry github
+Entry does not exist, do you want to create it? [y/n]: y
 Enter username: renatoathaydes
 Enter URL: github.com
 Enter description: My GitHub credentials
-Generate password [y/n]: y
-Generated Password for github.com!
-To copy it to the clipboard, type 'cp github'
-$go-hash> 
+Generate password? [y/n]: y
+Generated password for github!
+To copy it to the clipboard, type 'cp github'.
+go-hash»
 ```
 
-If you choose to not generate a password, you can simply enter it manually, but you should probably let go-hash generate a strong password for you! You don't even need to know it, as we'll see later.
+If you choose to not generate a password, you can simply enter it manually, but you should probably let go-hash generate a strong password for you! You don't even need to know passwords (except for the go-hash master password, of course), as we'll see later.
 
 #### Using entries
 
@@ -151,7 +153,7 @@ without you realizing you're not where you thought you were, prefer to login wit
 (again, using the entry called `github` as an example):
 
 ```
-$go-hash> goto github
+go-hash» goto github
 ```
 
 > Phishing attacks are the number one way that attackers use to steal credentials! You may think that you would never 
@@ -162,36 +164,42 @@ while they have plenty of time to use your credentials in whatever way they see 
 This will open the URL associated with the `github` entry using your default browser, automatically copying
 the password to the clipboard, so you can just paste the password immediately into the login form, knowing that you're indeed in the correct website.
 
-To copy your username for the entry named `github`, you can type the following:
+To copy your username for the entry named `github` (within the current group), you can type the following:
 
 ```
-$go-hash> cp u github
+go-hash» cp -u github
 ```
 
 To copy the password for the entry named `github`:
 
 ```
-$go-hash> cp p github
+go-hash» cp -p github
 ```
 
 Or simply:
 
 ```
-$go-hash> cp github
+go-hash» cp github
 ```
 
 #### Deleting entries and groups
 
-To delete an entry named `github`:
+To delete an entry named `github` (within the current group):
 
 ```
-$go-hash> rm entry github
+go-hash» rm -e github
+```
+
+Or simply:
+
+```
+go-hash» rm github
 ```
 
 To delete a group named `personal`:
 
 ```
-$go-hash> rm group personal
+go-hash» rm -g personal
 ```
 
 ## Database format

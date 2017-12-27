@@ -191,7 +191,7 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 		if len(answer) == 0 || answer == "y" {
 			password = generatePassword()
 			fmt.Printf("Generated password for %s!\n", name)
-			fmt.Printf("To copy it to the clipboard, type 'cp %s'\n", name)
+			fmt.Printf("To copy it to the clipboard, type 'cp %s'.\n", name)
 			answerAccepted = true
 		} else if answer == "n" {
 			for !answerAccepted {
