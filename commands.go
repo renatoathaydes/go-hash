@@ -16,6 +16,9 @@ import (
 type command interface {
 	// run a command with the given state, within the given group, returning the group the user should manipulate after this command is run.
 	run(state *State, group string, args string, reader *bufio.Reader) string
+
+	// help returns helpful information about how to use this command.
+	help() string
 }
 
 type lsCommand struct{}
@@ -40,8 +43,12 @@ func createCompleter() *readline.PrefixCompleter {
 }
 
 func usage(w io.Writer) {
-	io.WriteString(w, "Commands:\n")
-	io.WriteString(w, createCompleter().Tree("    "))
+	io.WriteString(w, "go-hash commands:\n")
+	for cmd, c := range commands {
+		io.WriteString(w, fmt.Sprintf("  %-8s %s\n", cmd, c.help()))
+	}
+	io.WriteString(w, "\nType 'exit' to exit a group or quit if you are not within a group.\n")
+	io.WriteString(w, "Type 'help' to print this message.\n")
 }
 
 func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
@@ -62,6 +69,10 @@ func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.
 	return group
 }
 
+func (cmd lsCommand) help() string {
+	return "shows all groups and entries in the database."
+}
+
 func (cmd entryCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
 	newEntry := args
 	if len(newEntry) > 0 {
@@ -80,6 +91,10 @@ func (cmd entryCommand) run(state *State, group string, args string, reader *buf
 		println("Error: please provide a name for the entry")
 	}
 	return group
+}
+
+func (cmd entryCommand) help() string {
+	return "shows/creates an entry."
 }
 
 func (cmd groupCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
@@ -105,6 +120,10 @@ func (cmd groupCommand) run(state *State, group string, args string, reader *buf
 	}
 
 	return group
+}
+
+func (cmd groupCommand) help() string {
+	return "enters/creates a group."
 }
 
 func yesNoQuestion(question string, reader *bufio.Reader) bool {

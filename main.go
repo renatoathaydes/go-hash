@@ -29,13 +29,6 @@ func getGoHashFilePath() string {
 	return home
 }
 
-func showUsage() {
-	println("go-hash is a utility to hash content and later verify it.\n" +
-		"Options:\n" +
-		"  write <content>\n" +
-		"  check <content>")
-}
-
 func createPassword() string {
 	for i := 0; i < 10; i++ {
 		print("Please enter a master password: ")
@@ -142,6 +135,8 @@ Loop:
 			} else {
 				break Loop
 			}
+		case "help":
+			usage(cli.Stdout())
 		default:
 			command := commands[cmd]
 			if command != nil {
@@ -151,7 +146,7 @@ Loop:
 					println("Error writing to database: " + err.Error())
 				}
 			} else if len(cmd) > 0 {
-				println("Unknown command: " + cmd)
+				fmt.Printf("Unknown command: '%s'. Type 'help' for usage.\n", cmd)
 			}
 		}
 	}
