@@ -3,12 +3,15 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 	"syscall"
 
+	"github.com/chzyer/readline"
 	"github.com/mitchellh/go-homedir"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -100,17 +103,35 @@ func runCliLoop(state *State, dbPath string, userPass string) {
 		if len(group) > 0 && group != "default" {
 			modifier = ":" + group
 		}
-		return "$go-hash" + modifier + "> "
+		return fmt.Sprintf("\033[31mgo-hash%s»\033[0m ", modifier)
 	}
+
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:            prompt(),
+		AutoComplete:      createCompleter(),
+		InterruptPrompt:   "^C",
+		HistorySearchFold: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
 
 Loop:
 	for {
-		print(prompt())
-		rawCmd, err := reader.ReadString('\n')
-		if err != nil {
-			panic(err)
+		l.SetPrompt(prompt())
+		line, err := l.Readline()
+		if err == readline.ErrInterrupt {
+			if len(line) == 0 {
+				break Loop
+			} else {
+				continue
+			}
+		} else if err == io.EOF {
+			break Loop
 		}
-		parts := splitTrimN(rawCmd, 2)
+
+		parts := splitTrimN(line, 2)
 		cmd := parts[0]
 		args := parts[1]
 

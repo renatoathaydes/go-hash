@@ -3,11 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net/url"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/chzyer/readline"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -24,6 +26,22 @@ var commands = map[string]command{
 	"ls":     lsCommand{},
 	"create": createCommand{},
 	"group":  groupCommand{},
+}
+
+func createCompleter() *readline.PrefixCompleter {
+	var cmdItems = make([]readline.PrefixCompleterInterface, len(commands)+1)
+	i := 0
+	for k := range commands {
+		cmdItems[i] = readline.PcItem(k)
+		i++
+	}
+	cmdItems[i] = readline.PcItem("exit")
+	return readline.NewPrefixCompleter(cmdItems...)
+}
+
+func usage(w io.Writer) {
+	io.WriteString(w, "commands:\n")
+	io.WriteString(w, createCompleter().Tree("    "))
 }
 
 func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
