@@ -169,17 +169,19 @@ func main() {
 		if os.IsNotExist(err) {
 			println("No database exists yet, to create one, you need to provide a strong password first.")
 			println("A strong password could be a phrase you could remember easily but that is hard to guess.")
-			println("Make sure to include both upper and lower-case letters, numbers and special characters like ? and @\n")
+			println("To make it harder to guess, include both upper and lower-case letters, numbers and special characters like ? and @.")
+			println("If you forget this password, there's no way to recover it or your data, so be careful!\n")
 			userPass = createPassword()
 		} else {
 			panic(err)
 		}
+		state = make(State)
 	} else {
 		// the DB exists, check if the user can open it
 		dbFile.Close()
 		state, userPass = openDatabase(dbFilePath)
 	}
 
-	println("Welcome, go-hash at your service.")
+	println("\nWelcome, go-hash at your service.\n")
 	runCliLoop(&state, dbFilePath, userPass)
 }
