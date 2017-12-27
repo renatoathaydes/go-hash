@@ -24,11 +24,13 @@ type command interface {
 type lsCommand struct{}
 type entryCommand struct{}
 type groupCommand struct{}
+type removeEntryCommand struct{}
 
 var commands = map[string]command{
 	"ls":    lsCommand{},
 	"group": groupCommand{},
 	"entry": entryCommand{},
+	"rm":    removeEntryCommand{},
 }
 
 func createCompleter() *readline.PrefixCompleter {
@@ -92,9 +94,8 @@ func (cmd entryCommand) run(state *State, group string, args string, reader *buf
 	newEntry := args
 	if len(newEntry) > 0 {
 		entries, _ := (*state)[group]
-		entry, found := findEntryIn(entries, newEntry)
-		if found {
-			println(entry.String())
+		if entryIndex, found := findEntryIndex(&entries, newEntry); found {
+			println(entries[entryIndex].String())
 		} else {
 			newEntryWanted := yesNoQuestion("Entry does not exist, do you want to create it? [y/n]: ", reader)
 			if newEntryWanted {
@@ -138,6 +139,31 @@ func (cmd groupCommand) run(state *State, group string, args string, reader *buf
 }
 
 func (cmd groupCommand) help() string {
+	return "enters/creates a group."
+}
+
+func (cmd removeEntryCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+	entryName := args
+	if len(entryName) == 0 {
+		println("Error: please provide the name of the entry to remove.")
+	} else {
+		removed := false
+		entries, ok := (*state)[group]
+		if ok {
+			entries, removed = removeEntryFrom(&entries, entryName)
+			if removed {
+				(*state)[group] = entries
+			}
+		}
+		if !removed {
+			println("Error: entry does not exist. Are you within the correct group?")
+			println("Hint: To enter a group called <group-name>, type 'group group-name'.")
+		}
+	}
+	return group
+}
+
+func (cmd removeEntryCommand) help() string {
 	return "enters/creates a group."
 }
 
@@ -251,13 +277,20 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 	return
 }
 
-func findEntryIn(entries []LoginInfo, name string) (LoginInfo, bool) {
-	for _, e := range entries {
+func findEntryIndex(entries *[]LoginInfo, name string) (int, bool) {
+	for i, e := range *entries {
 		if name == e.Name {
-			return e, true
+			return i, true
 		}
 	}
-	return LoginInfo{}, false
+	return -1, false
+}
+
+func removeEntryFrom(entries *[]LoginInfo, name string) ([]LoginInfo, bool) {
+	if i, found := findEntryIndex(entries, name); found {
+		return append((*entries)[:i], (*entries)[i+1:]...), true
+	}
+	return *entries, false
 }
 
 func generatePassword() string {
