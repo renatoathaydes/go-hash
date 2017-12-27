@@ -23,9 +23,13 @@ type LoginInfo struct {
 // State the actual login information persisted by the database.
 type State map[string][]LoginInfo
 
+// String human-readable representation of LoginInfo.
 func (info *LoginInfo) String() string {
-	return fmt.Sprintf("name: %s, username: %s, URL: %s, updatedAt: %s, description: %s\n",
-		info.Name, info.Username, info.URL, info.UpdatedAt, info.Description)
+	return fmt.Sprintf("  %s:\n    %-16s %s\n    %-16s %s\n    %-16s %s\n    %-16s %s", info.Name,
+		"username:", info.Username,
+		"URL:", info.URL,
+		"updatedAt:", info.UpdatedAt.Format("2006-01-02 15:04:05"),
+		"description:", info.Description)
 }
 
 func (info *LoginInfo) bytes() []byte {

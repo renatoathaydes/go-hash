@@ -59,7 +59,7 @@ func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.
 			fmt.Printf("Group %s:\n", groupDescription(groupName, &entries))
 			if len(entries) > 0 {
 				for _, e := range entries {
-					println("  " + e.String())
+					println(e.String())
 				}
 			}
 		} else {
@@ -69,16 +69,17 @@ func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.
 		groupLen := len(*state)
 		switch groupLen {
 		case 0:
-			println("1 group:")
+			println("1 group:\n")
 			fmt.Printf("  %s\n", groupDescription("default", &[]LoginInfo{}))
 		case 1:
-			println("1 group:")
+			println("1 group:\n")
 		default:
-			fmt.Printf("%d groups:\n", groupLen)
+			fmt.Printf("%d groups:\n\n", groupLen)
 		}
 		for groupName, entries := range *state {
 			fmt.Printf("  %s\n", groupDescription(groupName, &entries))
 		}
+		println("\nHint: Type 'ls group-name' to see all entries in a group called <group-name>.")
 	}
 	return group
 }
