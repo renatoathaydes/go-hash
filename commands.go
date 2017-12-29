@@ -437,7 +437,6 @@ func generatePassword() (password string) {
 			break
 		}
 	}
-	println(password)
 	return
 }
 
