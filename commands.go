@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os/exec"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -29,6 +31,7 @@ type entryCommand struct{}
 type groupCommand struct{}
 type removeCommand struct{}
 type cpCommand struct{}
+type gotoCommand struct{}
 
 var commands = map[string]command{
 	"ls":    lsCommand{},
@@ -36,6 +39,7 @@ var commands = map[string]command{
 	"entry": entryCommand{},
 	"rm":    removeCommand{},
 	"cp":    cpCommand{},
+	"goto":  gotoCommand{},
 }
 
 func createCompleter() *readline.PrefixCompleter {
@@ -58,7 +62,7 @@ func usage(w io.Writer) {
 	io.WriteString(w, "Type 'help' to print this message.\n")
 }
 
-func (cmd lsCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+func (cmd lsCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	if len(args) > 0 {
 		groupName := args
 		entries, ok := (*state)[groupName]
@@ -92,7 +96,7 @@ func (cmd lsCommand) help() string {
 	return "shows all groups, or a group's entries if given a group name."
 }
 
-func (cmd entryCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	newEntry := args
 	if len(newEntry) > 0 {
 		entries, _ := (*state)[group]
@@ -115,7 +119,7 @@ func (cmd entryCommand) help() string {
 	return "shows/creates an entry."
 }
 
-func (cmd groupCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	groupName := args
 	if len(groupName) > 0 {
 		_, groupExists := (*state)[groupName]
@@ -144,7 +148,7 @@ func (cmd groupCommand) help() string {
 	return "enters/creates a group."
 }
 
-func (cmd removeCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+func (cmd removeCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	arg := args
 	removeEntry := true // if false, remove group
 	switch {
@@ -165,7 +169,7 @@ func (cmd removeCommand) help() string {
 	return "removes a group or an entry of the current group."
 }
 
-func (cmd cpCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	parts := splitTrimN(args, 2)
 	field := parts[0]
 	entry := parts[1]
@@ -200,12 +204,12 @@ func (cmd cpCommand) run(state *State, group string, args string, reader *bufio.
 				"Type 'ls' to list all groups.")
 		} else {
 			println("Hint: there are no entries yet! You can create a new entry with the 'entry' command! " +
-				"For example, try typing 'entry gmail'")
+				"For example, try typing 'entry gmail'.")
 		}
 	}
 
 	if len(entry) == 0 {
-		println("Error: please provide an entry name")
+		println("Error: please provide an entry name.")
 		showEntryHint()
 	} else {
 		entryIndex, found := findEntryIndex(&entries, entry)
@@ -223,7 +227,7 @@ func (cmd cpCommand) run(state *State, group string, args string, reader *bufio.
 				fmt.Printf("Error: unable to copy! Reason: %s\n", err.Error())
 			}
 		} else {
-			fmt.Printf("Error: entry '%s' does not exist\n", entry)
+			fmt.Printf("Error: entry '%s' does not exist.\n", entry)
 			showEntryHint()
 		}
 	}
@@ -232,6 +236,38 @@ func (cmd cpCommand) run(state *State, group string, args string, reader *bufio.
 
 func (cmd cpCommand) help() string {
 	return "Copies an entry's field to the clipboard. Fields: -p = password, -u = username."
+}
+
+func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+	entryName := args
+	doCopyPass := true
+	if strings.HasPrefix(args, "-n ") {
+		entryName = strings.TrimSpace(args[3:])
+		doCopyPass = false
+	} else if len(args) == 0 {
+		println("Error: please provide the name of the entry to goto.")
+		return group
+	}
+
+	entries := (*state)[group]
+	if entryIndex, found := findEntryIndex(&entries, entryName); found {
+		URL := entries[entryIndex].URL
+		if len(URL) == 0 {
+			println("Error: entry does not have a URL to go to.")
+		} else {
+			go open(URL)
+			if doCopyPass {
+				return cpCommand{}.run(state, group, "-p "+entryName, reader)
+			}
+		}
+	} else {
+		fmt.Printf("Error: entry '%s' does not exist.\n", entryName)
+	}
+	return group
+}
+
+func (cmd gotoCommand) help() string {
+	return "Goes to the URL associated with an entry and copies its password to the clipboard."
 }
 
 func rmGroup(groupName string, state *State, group string, reader *bufio.Reader) string {
@@ -438,6 +474,25 @@ func generatePassword() (password string) {
 		}
 	}
 	return
+}
+
+// open the specified URL in the default browser of the user.
+// Copied from https://stackoverflow.com/questions/39320371/how-start-web-server-to-open-page-in-browser-in-golang
+func open(url string) error {
+	var cmd string
+	var args []string
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = "cmd"
+		args = []string{"/c", "start"}
+	case "darwin":
+		cmd = "open"
+	default: // "linux", "freebsd", "openbsd", "netbsd"
+		cmd = "xdg-open"
+	}
+	args = append(args, url)
+	return exec.Command(cmd, args...).Start()
 }
 
 func read(reader *bufio.Reader, prompt string) string {
