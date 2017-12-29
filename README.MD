@@ -30,13 +30,36 @@ The database format used by go-hash was inspired by [PWS3](https://metacpan.org/
 and modified to benefit from the strengths of [Argon2](https://github.com/p-h-c/phc-winner-argon2).
 The format is described in detail later in this document.
 
-## Usage
-
-### Make sure you install go-hash:
+## Installing
 
 TBD
 
-### Create/load a database
+## Introduction
+
+go-hash keeps your information safe in an encrypted file. This file is called a go-hash database.
+
+All information in a go-hash database is organised within groups of entries.
+
+A group has a name and may have 0 to many entries that are related somehow.
+
+For example, you may have a `work` group for stuff releated to work, and a `personal` group for personal accounts. 
+
+Entries contain the information you want to store securely. You can think of groups as directories, and entries as files.
+
+Currently, the following information can be stored on each entry:
+
+* `name` a short identifier for the entry. Used to refer to the entry with the `entry` command.
+* `URL` the URL of the website this entry refers to.
+* `username` your username with the given website.
+* `password` your password with the given website.
+* `description` a description of this entry.
+* `updatedAt` last time the entry was modified.
+
+Only `name` and `password` are mandatory.
+go-hash can generate a password for you when you create the entry (or you can enter one manually if you prefer).
+The `updatedAt` field is maintained automatically by go-hash.
+
+## Usage
 
 The first time you run `go-hash`, a new database will be created in the default location (`$HOME/.go-hash`).
 
@@ -54,7 +77,7 @@ If the file already exists, go-hash will try to load it as an existing database.
 
 ### Interact with the go-hash prompt
 
-Once you've loaded a database file, you will be prompted to enter a master password for the database:
+Once you've created a database, you will be prompted to enter a master password for the database:
 
 ```
 Go-Hash version GH00
@@ -73,44 +96,30 @@ Once you've done that, you should enter the go-hash prompt:
 go-hash»
 ```
 
-Type `help` to see how to use go-hash.
+While on the go-hash prompt, you can use the commands explained below to interact with go-hash.
 
-#### Listing entries
+Type `help` to see information about go-hash commands, or hit Tab to see the available commands and auto-complete options.
 
-In the go-hash prompt, you can list existing groups with the `ls` command:
+Quit go-hash by typing `quit`.
 
-```
-go-hash» ls
-```
+## Commands
 
-You should see the following output, indicating you have no entries in your database (but there's a group called `default`):
+### group
 
-```
-default (empty)
-```
+The `group` command is used to manage groups.
 
-To list the entries of a particular group, say `personal`, just give the name of the group as an argument to `ls`:
+To create a group called `personal`, for example, type:
 
 ```
-go-hash» ls personal
-```
-
-To see a particular entry within the current group, use the `entry` command:
-
-```
-go-hash» entry github
-```
-
-> An entry's password is never displayed. go-hash only allows you to copy the password to the clipboard, as explained later.
-
-#### Groups
-
-go-hash stores information in groups. You don't need to create or enter a group, though, as a default group is used if none is specified.
-
-But if you want to create a group called `personal`, for example:
-
-```
+# create or enter a group
 go-hash» group personal
+```
+
+Or use the `-c` option to avoid being asked if you want to create it:
+
+```
+# create a group
+go-hash» group -c personal
 ```
 
 After typing that, you will enter the new group automatically, so you should see the following prompt:
@@ -119,55 +128,126 @@ After typing that, you will enter the new group automatically, so you should see
 go-hash:personal»
 ```
 
-To exit a group, type `exit`. If you're not within a group, typing `exit` will quit go-hash.
+When you enter a group, you can manipulate entries within that group with the `entry` command (see the next section).
 
-While within a group, any actions you perform on entries apply under the current group.
+Before you enter a group, notice that you're implicitly within a `default` group, which always exists (but is not shown in the prompt).
 
-Notice that to enter a group that already exists, say the `personal` group we've just created, you just need to type `group personal` again:
-
-```
-go-hash» group personal
-go-hash:personal»
-```
-
-#### Creating entries
-
-To create a new entry called `github`, for example, use the `entry` command:
+To exit a group (actually, go back to the `default` group), type `exit`.
 
 ```
-go-hash» entry github
+# exit a group
+go-hash:personal» exit
 ```
 
-go-hash will then ask you for the information that you want to store.
+To re-enter a group, just type `group personal` again. As the group already exists, this time you just enter the group instead
+of being asked to create it.
 
-> As we saw above, if the entry already exists, go-hash will display information about the entry rather than create it.
-
-For example, when I create an entry for my GitHub account, the prompt session could look like this:
-
-```
-go-hash» entry github
-Entry does not exist, do you want to create it? [y/n]: y
-Enter username: renatoathaydes
-Enter URL: github.com
-Enter description: My GitHub credentials
-Generate password? [y/n]: y
-Generated password for github!
-To copy it to the clipboard, type 'cp github'.
-go-hash»
-```
-
-If you choose to not generate a password, you can simply enter it manually, but you should probably let go-hash generate a strong password for you! You don't even need to know your passwords (except for the go-hash master password, of course) when you use go-hash.
-
-#### Using entries
-
-To actually use go-hash to help you log in to some website, you need to copy the username/password so you can paste it in the login form.
-
-In order to avoid phishing attacks, in which an attacker might impersonate a website and request your credentials
-without you realizing you're not where you thought you were, prefer to login with the following command 
-(again, using the entry called `github` as an example):
+You can delete a group with the `-d` option:
 
 ```
-go-hash» goto github
+# delete a group
+go-hash» group -d personal
+```
+
+To rename a group, use the `-r` option:
+
+```
+# rename a group
+go-hash» group -r personal
+```
+
+You will be asked for the new name.
+
+To list all groups, just type `group`:
+
+```
+# list all groups
+go-hash» group
+```
+
+### entry
+
+The entry command is used to show, edit, create and delete entries within the current group.
+
+> Notice that you do not need to create a group explicitly, go-hash uses a `default` group if you do not create one.
+
+To see all entries within the current group, just type `entry`.
+
+```
+# show all entries in the current group
+go-hash» entry
+```
+
+To create an entry, give the name of the new entry, say `google`, as an argument to the `entry` command:
+
+```
+# create or show an entry called "google" within the current group
+go-hash» entry google
+```
+
+If the entry does not exist, you'll be asked if you want to create it, similarly to the `group` command. To avoid the prompt,
+use the `-c` option:
+
+```
+# create an entry called "google" within the current group
+go-hash» entry -c google
+```
+
+You will be asked to enter the details about the entry.
+
+Now that you've created the entry called `google`, typing `entry google` will show its details.
+
+For example:
+
+```
+go-hash» entry google
+  google:
+    username:        Joe@google.com
+    URL:             https://mail.google.com
+    updatedAt:       2017-12-29 17:34:52
+    description:     My email account.
+```
+
+> An entry's password is never displayed. go-hash only allows you to copy the password to the clipboard, as explained later.
+
+To edit the entry, use the `-e` option:
+
+```
+# edit an entry within the current group
+go-hash» entry -e google
+```
+
+You will be asked for the new details. To keep a value, just hit Enter without typing anything.
+
+To rename an entry, use the `-r` option:
+
+```
+# rename an entry within the current group
+go-hash» entry -e google
+```
+
+You will be asked for the new entry's name.
+
+To delete an entry, use the `-d` option:
+
+```
+# delete an entry within the current group
+go-hash» entry -d google
+```
+
+### goto
+
+The safest way to login to a website is by using the `goto` command to open it in your default browser.
+
+When you created an entry, you should have provided a `URL`... that URL is used by the `goto` command to know where to go,
+so there's no way you might accidentally give your credentials to the wrong website.
+
+Suppose you've created an entry called `google`, as explained in the `entry` command section. You can now go to the URL
+associated with that entry as follows: 
+
+```
+# go to the URL associated with the "google" entry in the current group, copying the password
+go-hash» goto google
 ```
 
 > Phishing attacks are the number one way that attackers use to steal credentials! You may think that you would never 
@@ -175,45 +255,38 @@ fall for a phishing attack, but evidence suggests that even the most tech-savvy 
 attacks without even knowing it! Attackers might just redirect you to the real website, so you think that you're safe,
 while they have plenty of time to use your credentials in whatever way they see fit without you realizing it for months.
 
-This will open the URL associated with the `github` entry using your default browser, automatically copying
-the password to the clipboard, so you can just paste the password immediately into the login form, knowing that you're indeed in the correct website.
+The `goto` command automatically copies the entry's password into the clipboard, ready for you to paste it into the login form!
 
-To copy your username for the entry named `github` (within the current group), you can type the following:
-
-```
-go-hash» cp -u github
-```
-
-To copy the password for the entry named `github`:
+If you do not want the password to be copied automatically, use the `-n` option:
 
 ```
-go-hash» cp -p github
+# go to the URL associated with the "google" entry in the current group, do not copy the password
+go-hash» goto -n google
 ```
 
-Or simply:
+### cp
+
+The `cp` (copy) command can be used to copy an entry's username and password to the clipboard, so that you can easily paste it into login forms.
+
+To copy the password to the clipboard, use the `-p` option:
 
 ```
-go-hash» cp github
+# copy the password for the "google" entry in the current group
+go-hash» cp -p google
 ```
 
-#### Deleting entries and groups
-
-To delete an entry named `github` (within the current group):
+To copy the username to the clipboard, use the `-u` option:
 
 ```
-go-hash» rm -e github
+# copy the username for the "google" entry in the current group
+go-hash» cp -u google
 ```
 
-Or simply:
+Or just omit any options:
 
 ```
-go-hash» rm github
-```
-
-To delete a group named `personal`:
-
-```
-go-hash» rm -g personal
+# copy the username for the "google" entry in the current group
+go-hash» cp google
 ```
 
 ## Database format
