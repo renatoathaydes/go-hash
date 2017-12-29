@@ -7,7 +7,7 @@ Current status:
 - [x] database format definition
 - [x] database format implementation
 - [x] Create database
-- [ ] Load custom database
+- [x] Load custom database location
 - [x] Generate random password
 - [ ] Customize rules for generated passwords
 - [ ] Clear clipboard some time after copying content to it

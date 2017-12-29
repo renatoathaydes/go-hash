@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -27,6 +28,25 @@ func getGoHashFilePath() string {
 		panic(err)
 	}
 	return home
+}
+
+func parentDirExists(path string) bool {
+	_, err := os.Stat(filepath.Dir(path))
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	panic("Cannot read directory path")
+}
+
+func isDir(path string) bool {
+	stat, err := os.Stat(path)
+	if err == nil {
+		return stat.IsDir()
+	}
+	return false
 }
 
 func createPassword() string {
@@ -158,7 +178,23 @@ func main() {
 	println("Go-Hash version " + DBVERSION)
 	println("")
 
-	dbFilePath := getGoHashFilePath()
+	var dbFilePath string
+
+	switch len(os.Args) {
+	case 1:
+		dbFilePath = getGoHashFilePath()
+	case 2:
+		dbFilePath = os.Args[1]
+		if !parentDirExists(dbFilePath) {
+			panic("The provided file is under a non-existing directory. Please create the directory manually first.")
+		}
+		if isDir(dbFilePath) {
+			panic("The path you provided is a directory. Please provide a file.")
+		}
+	default:
+		panic("Too many arguments provided. go-hash only accepts none or one argument: the passwords file.")
+	}
+
 	dbFile, err := os.Open(dbFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
