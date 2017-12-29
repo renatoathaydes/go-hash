@@ -8,7 +8,8 @@ Current status:
 - [x] database format implementation
 - [x] Create database
 - [ ] Load custom database
-- [ ] Generate random password
+- [x] Generate random password
+- [ ] Customize rules for generated passwords
 - [ ] Clear clipboard some time after copying content to it
 - [x] CLI `ls` command
 - [x] CLI `entry` command

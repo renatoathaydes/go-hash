@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/renatoathaydes/go-hash/encryption"
+
 	"github.com/atotto/clipboard"
 	"github.com/chzyer/readline"
 	"golang.org/x/crypto/ssh/terminal"
@@ -408,9 +410,35 @@ func removeEntryFrom(entries *[]LoginInfo, name string) ([]LoginInfo, bool) {
 	return *entries, false
 }
 
-func generatePassword() string {
-	// TODO
-	return ""
+func generatePassword() (password string) {
+	var (
+		minChar uint8 = ' '
+		maxChar uint8 = '~'
+	)
+	charRange := make([]uint8, 1+maxChar-minChar)
+	for i := 0; i < len(charRange); i++ {
+		charRange[i] = minChar + uint8(i)
+	}
+
+	containsChars := func(p string, min rune, max rune) bool {
+		for _, c := range p {
+			if min <= c && c <= max {
+				return true
+			}
+		}
+		return false
+	}
+
+	for {
+		password = encryption.GeneratePassword(16, charRange)
+		if containsChars(password, '0', '9') &&
+			containsChars(password, 'A', 'Z') &&
+			containsChars(password, 'a', 'z') {
+			break
+		}
+	}
+	println(password)
+	return
 }
 
 func read(reader *bufio.Reader, prompt string) string {

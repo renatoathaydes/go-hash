@@ -8,6 +8,7 @@ import (
 	"crypto/sha512"
 	"errors"
 	"io"
+	"math/big"
 	"runtime"
 
 	"github.com/golang/crypto/argon2"
@@ -88,6 +89,24 @@ func GenerateRandomBytes(len uint32) []byte {
 		panic(err)
 	}
 	return result
+}
+
+// GeneratePassword generates a random sequence of the given ASCII characters.
+func GeneratePassword(length int, characters []uint8) string {
+	maxIndex := len(characters)
+	if maxIndex < 2 {
+		panic("At least 2 characters must be provided")
+	}
+	maxIndexBig := big.NewInt(int64(maxIndex))
+	result := make([]uint8, length)
+	for i := 0; i < length; i++ {
+		n, err := rand.Int(rand.Reader, maxIndexBig)
+		if err != nil {
+			panic(err)
+		}
+		result[i] = characters[int(n.Uint64())]
+	}
+	return string(result)
 }
 
 // PasswordHash creates a cryptographical hash of the salted password.
