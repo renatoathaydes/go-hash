@@ -25,17 +25,14 @@ type command interface {
 type lsCommand struct{}
 type entryCommand struct{}
 type groupCommand struct{}
-type removeEntryCommand struct{}
-type removeGroupCommand struct{}
+type removeCommand struct{}
 type cpCommand struct{}
 
 var commands = map[string]command{
 	"ls":    lsCommand{},
 	"group": groupCommand{},
 	"entry": entryCommand{},
-	"rm":    removeEntryCommand{},
-	"re":    removeEntryCommand{},
-	"rg":    removeGroupCommand{},
+	"rm":    removeCommand{},
 	"cp":    cpCommand{},
 }
 
@@ -145,68 +142,25 @@ func (cmd groupCommand) help() string {
 	return "enters/creates a group."
 }
 
-func (cmd removeEntryCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
-	entryName := args
-	if len(entryName) == 0 {
-		println("Error: please provide the name of the entry to remove.")
-	} else {
-		removed := false
-		entries, ok := (*state)[group]
-		if ok {
-			entries, removed = removeEntryFrom(&entries, entryName)
-			if removed {
-				(*state)[group] = entries
-			}
-		}
-		if !removed {
-			println("Error: entry does not exist. Are you within the correct group?")
-			println("Hint: To enter a group called <group-name>, type 'group group-name'.")
-		}
+func (cmd removeCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
+	arg := args
+	removeEntry := true // if false, remove group
+	switch {
+	case strings.HasPrefix(args, "-e"):
+		arg = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-g"):
+		arg = strings.TrimSpace(args[2:])
+		removeEntry = false
 	}
-	return group
-}
 
-func (cmd removeEntryCommand) help() string {
-	return "removes an entry of the current group."
-}
-
-func (cmd removeGroupCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
-	groupName := args
-	if len(groupName) == 0 {
-		println("Error: please provide the name of the group to remove.")
-	} else {
-		entries, ok := (*state)[groupName]
-		entriesLen := len(entries)
-		if ok {
-			goAhead := entriesLen == 0 // if there are no entries, don't bother asking for confirmation
-			if groupName == "default" {
-				if !goAhead {
-					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove all (%d) entries of the default group? [y/n]: ",
-						entriesLen), reader)
-					if goAhead {
-						(*state)[groupName] = []LoginInfo{}
-					}
-				} else {
-					println("Warning: cannot delete the default group and there are no entries to remove.")
-				}
-			} else {
-				if !goAhead {
-					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove group '%s' and all of its (%d) entries? [y/n]: ",
-						groupName, entriesLen), reader)
-				}
-				if goAhead {
-					delete(*state, groupName)
-				}
-			}
-		} else {
-			println("Error: group does not exist.")
-		}
+	if removeEntry {
+		return rmEntry(arg, state, group, reader)
 	}
-	return group
+	return rmGroup(arg, state, group, reader)
 }
 
-func (cmd removeGroupCommand) help() string {
-	return "removes a group, along with all of its entries."
+func (cmd removeCommand) help() string {
+	return "removes a group or an entry of the current group."
 }
 
 func (cmd cpCommand) run(state *State, group string, args string, reader *bufio.Reader) string {
@@ -276,6 +230,64 @@ func (cmd cpCommand) run(state *State, group string, args string, reader *bufio.
 
 func (cmd cpCommand) help() string {
 	return "Copies an entry's field to the clipboard. Fields: -p = password, -u = username."
+}
+
+func rmGroup(groupName string, state *State, group string, reader *bufio.Reader) string {
+	if len(groupName) == 0 {
+		println("Error: please provide the name of the group to remove.")
+	} else {
+		entries, ok := (*state)[groupName]
+		entriesLen := len(entries)
+		if ok {
+			goAhead := entriesLen == 0 // if there are no entries, don't bother asking for confirmation
+			if groupName == "default" {
+				if !goAhead {
+					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove all (%d) entries of the default group? [y/n]: ",
+						entriesLen), reader)
+					if goAhead {
+						(*state)[groupName] = []LoginInfo{}
+					}
+				} else {
+					println("Warning: cannot delete the default group and there are no entries to remove.")
+				}
+			} else {
+				if !goAhead {
+					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove group '%s' and all of its (%d) entries? [y/n]: ",
+						groupName, entriesLen), reader)
+					if !goAhead {
+						println("Aborted!")
+					}
+				}
+				if goAhead {
+					delete(*state, groupName)
+				}
+			}
+		} else {
+			println("Error: group does not exist.")
+		}
+	}
+	return group
+}
+
+func rmEntry(entryName string, state *State, group string, reader *bufio.Reader) string {
+	if len(entryName) == 0 {
+		println("Error: please provide the name of the entry to remove.")
+		println("Hint: to remove a whole group, use the -g option, e.g. rm -g <group-name>.")
+	} else {
+		removed := false
+		entries, ok := (*state)[group]
+		if ok {
+			entries, removed = removeEntryFrom(&entries, entryName)
+			if removed {
+				(*state)[group] = entries
+			}
+		}
+		if !removed {
+			println("Error: entry does not exist. Are you within the correct group?")
+			println("Hint: To enter a group called <group-name>, type 'group group-name'.")
+		}
+	}
+	return group
 }
 
 func groupDescription(name string, entries *[]LoginInfo) string {

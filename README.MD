@@ -14,8 +14,7 @@ Current status:
 - [x] CLI `entry` command
 - [x] CLI `group` command
 - [x] CLI `cp` (copy) command
-- [x] CLI `rm` (remove entry) command
-- [x] CLI `rg` (remove group) command
+- [x] CLI `rm` (remove) command
 - [ ] CLI `goto` command
 
 ## Description
