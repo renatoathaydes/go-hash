@@ -54,3 +54,23 @@ func TestGeneratePassword(t *testing.T) {
 	// check for uniqueness (chance of duplicates should be negligible)
 	require.Len(t, passwordSet, 1000, fmt.Sprintf("Found duplicate passwords in set: %v", passwordSet))
 }
+
+var blackHole interface{}
+
+func BenchmarkPasswordHash(b *testing.B) {
+	b.ReportAllocs()
+	salt := GenerateSalt()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		blackHole = PasswordHash("weak pass", salt)
+	}
+}
+
+func BenchmarkPasswordGeneration(b *testing.B) {
+	b.ReportAllocs()
+	charRange := DefaultPasswordCharRange()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		blackHole = GeneratePassword(16, charRange)
+	}
+}
