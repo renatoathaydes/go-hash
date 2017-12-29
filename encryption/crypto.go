@@ -33,6 +33,21 @@ const (
 // THREADS number of Threads to use in PasswordHash.
 var THREADS = uint8(runtime.NumCPU())
 
+var defaultPasswordCharRange []uint8
+
+func init() {
+	var (
+		minChar uint8 = ' '
+		maxChar uint8 = '~'
+	)
+	charRange := make([]uint8, 1+maxChar-minChar)
+	for i := 0; i < len(charRange); i++ {
+		charRange[i] = minChar + uint8(i)
+	}
+
+	defaultPasswordCharRange = charRange
+}
+
 // Encrypt a message given a secret key.
 func Encrypt(key, message []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
@@ -91,6 +106,11 @@ func GenerateRandomBytes(len uint32) []byte {
 		panic(err)
 	}
 	return result
+}
+
+// DefaultPasswordCharRange returns the default ASCII characters to be used with GeneratePassword().
+func DefaultPasswordCharRange() []uint8 {
+	return defaultPasswordCharRange
 }
 
 // GeneratePassword generates a random sequence of the given ASCII characters.
