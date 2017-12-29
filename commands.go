@@ -447,14 +447,7 @@ func removeEntryFrom(entries *[]LoginInfo, name string) ([]LoginInfo, bool) {
 }
 
 func generatePassword() (password string) {
-	var (
-		minChar uint8 = ' '
-		maxChar uint8 = '~'
-	)
-	charRange := make([]uint8, 1+maxChar-minChar)
-	for i := 0; i < len(charRange); i++ {
-		charRange[i] = minChar + uint8(i)
-	}
+	charRange := encryption.DefaultPasswordCharRange()
 
 	containsChars := func(p string, min rune, max rune) bool {
 		for _, c := range p {
