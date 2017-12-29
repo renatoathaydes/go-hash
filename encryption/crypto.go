@@ -11,7 +11,9 @@ import (
 	"math/big"
 	"runtime"
 
-	"github.com/golang/crypto/argon2"
+	// FIXME use golang argon2 when this bug fix is released: https://github.com/golang/go/issues/23245
+	//"github.com/golang/crypto/argon2"
+	"github.com/aead/argon2"
 )
 
 const (
@@ -19,7 +21,7 @@ const (
 	TIME uint32 = 4
 
 	// MEMORY complexity parameter for Argon2, used by PasswordHash.
-	MEMORY uint32 = 32 // * 1024
+	MEMORY uint32 = 32 * 1024
 
 	// SALTLEN length of salt given by GenerateSalt.
 	SALTLEN uint32 = 32
