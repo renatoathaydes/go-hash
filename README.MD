@@ -226,16 +226,17 @@ version | salt | H | B1 | B2 | B3 | B4 | len(E) | E | HMAC
 
 where:
 
-* `version` (4 bytes) version of the database.
-* `salt` (32 bytes) used to hash the user's master password.
-* `P` [Argon2](https://github.com/p-h-c/phc-winner-argon2)-hash of the user's master password with a key length    of 32. Notice that the hash is calculated based on the user's master password and the salt.
-* `H` (512 bytes) SHA512 checksum of the password hash `P`.
+* `version` (4 bytes) version of the database ("GH00").
+* `salt` (32 bytes) random sequence used to hash the user's master password.
+* `P` (32 bytes) [Argon2](https://github.com/p-h-c/phc-winner-argon2)-hash of the user's master password.
+  Notice that the hash is calculated based on the user's master password and the salt.
+* `H` (64 bytes) SHA512 checksum of the password hash `P`.
 * `K` (32 bytes) random key used to encrypt the database entries.
 * `L` (32 bytes) random key used to calculate the HMAC of the database.
-* `B1` (64 bytes) the least-significant half of the `K` key after encryption with `P` used as key.
-* `B2` (64 bytes) the most-significant half of the `K` key after encryption with `P` used as key.		
-* `B3` (64 bytes) the least-significant half of the `L` key after encryption with `P` used as key.
-* `B4` (64 bytes) the most-significant half of the `L` key after encryption with `P` used as key.		
+* `B1` (32 bytes) the least-significant half of the `K` key after AES encryption with `P` used as key.
+* `B2` (32 bytes) the most-significant half of the `K` key after AES encryption with `P` used as key.		
+* `B3` (32 bytes) the least-significant half of the `L` key after AES encryption with `P` used as key.
+* `B4` (32 bytes) the most-significant half of the `L` key after AES encryption with `P` used as key.		
 * `len(E)` (4 bytes) the hexadecimal length, in bytes, of the encrypted database entries.
 * `E` the encrypted database entries. Encryption is performed using AES256 with `K` as the key.
 * `HMAC` The HMAC of the salt followed by the unencrypted, serialized version of the database entries,
