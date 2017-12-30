@@ -26,7 +26,6 @@ type command interface {
 	help() string
 }
 
-type lsCommand struct{}
 type entryCommand struct{}
 type groupCommand struct{}
 type removeCommand struct{}
@@ -34,7 +33,6 @@ type cpCommand struct{}
 type gotoCommand struct{}
 
 var commands = map[string]command{
-	"ls":    lsCommand{},
 	"group": groupCommand{},
 	"entry": entryCommand{},
 	"rm":    removeCommand{},
@@ -62,40 +60,6 @@ func usage(w io.Writer) {
 	io.WriteString(w, "Type 'help' to print this message.\n")
 }
 
-func (cmd lsCommand) run(state *State, group, args string, reader *bufio.Reader) string {
-	if len(args) > 0 {
-		groupName := args
-		entries, ok := (*state)[groupName]
-		if ok {
-			fmt.Printf("Group %s:\n", groupDescription(groupName, &entries))
-			if len(entries) > 0 {
-				for _, e := range entries {
-					println(e.String())
-				}
-			}
-		} else {
-			println("Group does not exist: " + groupName)
-		}
-	} else {
-		groupLen := len(*state)
-		switch groupLen {
-		case 1:
-			println("There is 1 group:\n")
-		default:
-			fmt.Printf("There are %d groups:\n\n", groupLen)
-		}
-		for groupName, entries := range *state {
-			fmt.Printf("  %s\n", groupDescription(groupName, &entries))
-		}
-		println("\nHint: Type 'ls group-name' to see all entries in a group called <group-name>.")
-	}
-	return group
-}
-
-func (cmd lsCommand) help() string {
-	return "shows all groups, or a group's entries if given a group name."
-}
-
 func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	newEntry := args
 	if len(newEntry) > 0 {
@@ -110,7 +74,14 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 			}
 		}
 	} else {
-		println("Error: please provide a name for the entry")
+		entries := (*state)[group]
+		fmt.Printf("Showing group %s:\n\n", groupDescription(group, &entries, false))
+		if len(entries) > 0 {
+			for _, e := range entries {
+				println(e.String())
+			}
+		}
+		println("\nHint: To show the details of a single entry, type 'entry <name>'.")
 	}
 	return group
 }
@@ -138,7 +109,17 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 			}
 		}
 	} else {
-		println("Error: please provide a name for the group")
+		groupLen := len(*state)
+		switch groupLen {
+		case 1:
+			println("There is 1 group:\n")
+		default:
+			fmt.Printf("There are %d groups:\n\n", groupLen)
+		}
+		for groupName, entries := range *state {
+			fmt.Printf("  %s\n", groupDescription(groupName, &entries, true))
+		}
+		println("\nHint: Type 'entry' to list all entries in the current group.")
 	}
 
 	return group
@@ -328,7 +309,7 @@ func rmEntry(entryName string, state *State, group string, reader *bufio.Reader)
 	return group
 }
 
-func groupDescription(name string, entries *[]LoginInfo) string {
+func groupDescription(name string, entries *[]LoginInfo, tabularFormat bool) string {
 	var entriesSize string
 	entriesLen := len(*entries)
 	switch entriesLen {
@@ -339,7 +320,11 @@ func groupDescription(name string, entries *[]LoginInfo) string {
 	default:
 		entriesSize = fmt.Sprintf("%d entries", entriesLen)
 	}
-	return fmt.Sprintf("%-16s (%s)", name, entriesSize)
+	template := "%-16s (%s)"
+	if !tabularFormat {
+		template = "%s (%s)"
+	}
+	return fmt.Sprintf(template, name, entriesSize)
 }
 
 func yesNoQuestion(question string, reader *bufio.Reader) bool {
