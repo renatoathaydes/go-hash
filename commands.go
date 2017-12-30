@@ -31,30 +31,84 @@ type command interface {
 	completer() readline.PrefixCompleterInterface
 }
 
-type helpCommand struct{}
-type entryCommand struct{}
-type groupCommand struct{}
-type cpCommand struct{}
-type gotoCommand struct{}
+type helpCommand struct {
+	commands map[string]command
+}
 
-var commands = map[string]command{
-	"help":  helpCommand{},
-	"group": groupCommand{},
-	"entry": entryCommand{},
-	"cp":    cpCommand{},
-	"goto":  gotoCommand{},
+type entryCommand struct {
+	entries func() []string
+}
+
+type groupCommand struct {
+	groups func() []string
+}
+
+type cpCommand struct {
+	entries func() []string
+}
+
+type gotoCommand struct {
+	entries func() []string
+}
+
+type groupBox struct {
+	group string
 }
 
 // ============= CLI creation ============= //
 
-func createCompleter() *readline.PrefixCompleter {
-	var cmdItems = make([]readline.PrefixCompleterInterface, len(commands)+1)
+func createCommands(state *State, grBox *groupBox) map[string]command {
+	getGroups := func() []string {
+		result := make([]string, len(*state), len(*state))
+		i := 0
+		for gr := range *state {
+			result[i] = gr
+			i++
+		}
+		return result
+	}
+
+	getEntries := func() []string {
+		entries := (*state)[grBox.group]
+		result := make([]string, len(entries), len(entries))
+		for i, e := range entries {
+			result[i] = e.Name
+		}
+		return result
+	}
+
+	var commands = map[string]command{
+		"group": groupCommand{
+			groups: getGroups,
+		},
+		"entry": entryCommand{
+			entries: getEntries,
+		},
+		"cp": cpCommand{
+			entries: getEntries,
+		},
+		"goto": gotoCommand{
+			entries: getEntries,
+		},
+	}
+
+	commands["help"] = helpCommand{
+		commands: commands,
+	}
+
+	return commands
+}
+
+func createCompleter(commands map[string]command) *readline.PrefixCompleter {
+	var cmdItems = make([]readline.PrefixCompleterInterface, len(commands)+2)
 	i := 0
-	for k := range commands {
-		cmdItems[i] = readline.PcItem(k)
+	for _, cmd := range commands {
+		cmdItems[i] = cmd.completer()
 		i++
 	}
 	cmdItems[i] = readline.PcItem("exit")
+	cmdItems[i+1] = readline.PcItem("quit")
+
 	return readline.NewPrefixCompleter(cmdItems...)
 }
 
@@ -73,11 +127,11 @@ func (cmd groupCommand) help() string {
 }
 
 func (cmd cpCommand) help() string {
-	return "Copies an entry's field to the clipboard. Fields: -p = password, -u = username."
+	return "copies an entry's field to the clipboard. Fields: -p = password, -u = username."
 }
 
 func (cmd gotoCommand) help() string {
-	return "Goes to the URL associated with an entry and copies its password to the clipboard."
+	return "goes to the URL associated with an entry and copies its password to the clipboard."
 }
 
 // ============= Commands: Long help ============= //
@@ -223,28 +277,61 @@ func (cmd gotoCommand) longHelp() string {
 // ============= Commands: Auto-completers ============= //
 
 func (cmd helpCommand) completer() readline.PrefixCompleterInterface {
-	return readline.PcItem("help")
+	commands := cmd.commands
+	commandItems := make([]readline.PrefixCompleterInterface, len(commands), len(commands))
+	i := 0
+	for name := range commands {
+		commandItems[i] = readline.PcItem(name)
+		i++
+	}
+	return readline.PcItem("help", commandItems...)
+}
+
+func commandCompleter(getValues func() []string) readline.PrefixCompleterInterface {
+	resolve := func(line string) []string {
+		return getValues()
+	}
+	return readline.PcItemDynamic(resolve)
 }
 
 func (cmd entryCommand) completer() readline.PrefixCompleterInterface {
-	return readline.PcItem("entry")
+	cmp := commandCompleter(cmd.entries)
+	return readline.PcItem("entry",
+		cmp,
+		readline.PcItem("-c"),
+		readline.PcItem("-d", cmp),
+		readline.PcItem("-e", cmp),
+		readline.PcItem("-r", cmp))
 }
 
 func (cmd groupCommand) completer() readline.PrefixCompleterInterface {
-	return readline.PcItem("group")
+	cmp := commandCompleter(cmd.groups)
+	return readline.PcItem("group",
+		cmp,
+		readline.PcItem("-c"),
+		readline.PcItem("-d", cmp),
+		readline.PcItem("-r", cmp))
 }
 
 func (cmd cpCommand) completer() readline.PrefixCompleterInterface {
-	return readline.PcItem("cp")
+	cmp := commandCompleter(cmd.entries)
+	return readline.PcItem("cp",
+		cmp,
+		readline.PcItem("-u", cmp),
+		readline.PcItem("-p", cmp))
 }
 
 func (cmd gotoCommand) completer() readline.PrefixCompleterInterface {
-	return readline.PcItem("goto")
+	cmp := commandCompleter(cmd.entries)
+	return readline.PcItem("goto",
+		cmp,
+		readline.PcItem("-n", cmp))
 }
 
 // ============= Commands: run implementations ============= //
 
 func (cmd helpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+	commands := cmd.commands
 	if args == "" {
 		println("go-hash commands:\n")
 		for name, cmd := range commands {
@@ -829,5 +916,4 @@ func yesNoQuestion(question string, reader *bufio.Reader) bool {
 			println("Please answer y or n (no answer means y)")
 		}
 	}
-
 }
