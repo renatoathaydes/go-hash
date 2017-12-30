@@ -14,7 +14,7 @@ Current status:
 - [ ] CLI `entry` command
 - [ ] CLI `group` command
 - [x] CLI `cp` (copy) command
-- [ ] CLI `goto` command
+- [x] CLI `goto` command
 
 ## Description
 
