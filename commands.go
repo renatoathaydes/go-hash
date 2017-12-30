@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net/url"
 	"os/exec"
 	"runtime"
@@ -32,12 +31,14 @@ type command interface {
 	completer() readline.PrefixCompleterInterface
 }
 
+type helpCommand struct{}
 type entryCommand struct{}
 type groupCommand struct{}
 type cpCommand struct{}
 type gotoCommand struct{}
 
 var commands = map[string]command{
+	"help":  helpCommand{},
 	"group": groupCommand{},
 	"entry": entryCommand{},
 	"cp":    cpCommand{},
@@ -57,16 +58,11 @@ func createCompleter() *readline.PrefixCompleter {
 	return readline.NewPrefixCompleter(cmdItems...)
 }
 
-func usage(w io.Writer) {
-	io.WriteString(w, "go-hash commands:\n\n")
-	for cmd, c := range commands {
-		io.WriteString(w, fmt.Sprintf("  %-8s %s\n", cmd, c.help()))
-	}
-	io.WriteString(w, "\nType 'exit' to exit a group or quit if you are not within a group.\n")
-	io.WriteString(w, "Type 'help' to print this message.\n")
-}
-
 // ============= Commands: Short help ============= //
+
+func (cmd helpCommand) help() string {
+	return "prints this message or help about a specific command."
+}
 
 func (cmd entryCommand) help() string {
 	return "manages entries within the current group."
@@ -86,23 +82,149 @@ func (cmd gotoCommand) help() string {
 
 // ============= Commands: Long help ============= //
 
+const helpUsage = `
+=== help command usage ===
+
+The help command prints helpful information.
+
+Usage:
+  help [<name>]
+
+Without a <name> argument, the help command shows general go-hash usage, 
+otherwise full information about a specific command is shown.
+`
+
+const entryUsage = `
+=== entry command usage ===
+
+The entry command is used to manage entries within the current group.
+To switch to a different group, use the 'group' command (type 'help group' for more information about groups).
+
+Usage:
+  entry [-option] [<name>]
+
+Options:
+  -c <name>   create an entry.
+  -d <name>   delete an entry.
+  -e <name>   edit an entry.
+  -r <name>   rename an entry.
+
+Without an option or a <name> argument, the entry command simply lists all entries within the current group.
+
+Typing 'entry <name>' will either display information about the entry, or create it if the entry does not exist.
+
+Examples:
+
+  # list all entries in the current group
+  entry
+
+  # delete the entry called 'hello'
+  entry -d hello
+`
+const groupUsage = `
+=== group command usage ===
+
+The group command is used to manage groups or enter a group in order to manage its entries.
+
+Usage:
+  group [-option] [<name>]
+
+Options:
+  -c <name>   create a group.
+  -d <name>   delete a group.
+  -r <name>   rename a group.
+
+Without an option or a <name> argument, the group command simply lists all groups in the database.
+
+Typing 'group <name>' will either enter the group (so that the 'entry' command will apply to entries
+within the chosen group) , or create it if it does not exist.
+
+After entering a group, the 'entry' command applies only to the entries within the entered group.
+Type 'exit' to exit a group.
+
+A group called 'default' is used if no group is entered. This group always exists but is not
+shown in the prompt as other groups, allowing the user to manage entries without using groups
+explicitly.
+
+Examples:
+
+  # list all groups
+  group
+
+  # delete a group called 'hello'
+  group -d hello
+`
+
+const copyUsage = `
+=== cp command usage ===
+
+The cp command can be used to copy information about entries to the clipboard.
+That allows users to easily copy/paste the information where the information is required.
+
+Usage:
+  cp [-option] <name>
+
+Options:
+  -u <name>   copy the username.
+  -p <name>   copy the password.
+
+If an option is not provided, the username associated with the chosen entry is copied.
+
+Examples:
+
+  # copy the username associated with the 'hello' entry
+  cp hello
+
+  # copy the password associated with the 'other' entry
+  cp -p other
+`
+
+const gotoUsage = `
+=== goto command usage ===
+
+The goto command helps users login safely into websites by opening the URL associated with
+an entry directly in the default browser, then copying the password to the clipboard so that
+it can be pasted into the login form without waste of time.
+
+Usage:
+  goto [-option] <name>
+
+Options:
+  -n <name>   do not copy the password.
+
+If the -n option is not used, the entry's password is copied to the clipboard automatically.
+
+Examples:
+
+  # go to the web page (URL) associated with the 'hello' entry
+  goto hello
+`
+
+func (cmd helpCommand) longHelp() string {
+	return helpUsage
+}
+
 func (cmd entryCommand) longHelp() string {
-	return "manages entries within the current group."
+	return entryUsage
 }
 
 func (cmd groupCommand) longHelp() string {
-	return "manages/enters groups."
+	return groupUsage
 }
 
 func (cmd cpCommand) longHelp() string {
-	return "Copies an entry's field to the clipboard. Fields: -p = password, -u = username."
+	return copyUsage
 }
 
 func (cmd gotoCommand) longHelp() string {
-	return "Goes to the URL associated with an entry and copies its password to the clipboard."
+	return gotoUsage
 }
 
 // ============= Commands: Auto-completers ============= //
+
+func (cmd helpCommand) completer() readline.PrefixCompleterInterface {
+	return readline.PcItem("help")
+}
 
 func (cmd entryCommand) completer() readline.PrefixCompleterInterface {
 	return readline.PcItem("entry")
@@ -121,6 +243,26 @@ func (cmd gotoCommand) completer() readline.PrefixCompleterInterface {
 }
 
 // ============= Commands: run implementations ============= //
+
+func (cmd helpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+	if args == "" {
+		println("go-hash commands:\n")
+		for name, cmd := range commands {
+			fmt.Printf("  %-8s %s\n", name, cmd.help())
+		}
+		println("\nType 'exit' to exit a group or quit if you are not within a group.")
+		println("To quit from anywhere, type 'quit'.")
+	} else {
+		cmd, exists := commands[args]
+		if exists {
+			println(cmd.longHelp())
+		} else {
+			println("Error: command does not exist.")
+		}
+	}
+
+	return group
+}
 
 func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	var (

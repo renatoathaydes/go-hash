@@ -149,14 +149,14 @@ Loop:
 		args := parts[1]
 
 		switch cmd {
+		case "quit":
+			break Loop
 		case "exit":
 			if group != "default" {
 				group = "default"
 			} else {
 				break Loop
 			}
-		case "help":
-			usage(cli.Stdout())
 		default:
 			command := commands[cmd]
 			if command != nil {
