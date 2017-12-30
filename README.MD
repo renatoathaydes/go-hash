@@ -11,8 +11,8 @@ Current status:
 - [x] Generate random password
 - [ ] Customize rules for generated passwords
 - [ ] Clear clipboard some time after copying content to it
-- [ ] CLI `entry` command
-- [ ] CLI `group` command
+- [x] CLI `entry` command
+- [x] CLI `group` command
 - [x] CLI `cp` (copy) command
 - [x] CLI `goto` command
 
