@@ -1,6 +1,7 @@
 # go-hash
 
-> This project is under development and is not ready for use!
+> This project's basic functionality is completed but the security has not yet been reviewed by experts!
+  Use at your own risk.
 
 Current status:
 
