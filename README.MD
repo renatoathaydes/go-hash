@@ -25,6 +25,11 @@ go-hash was designed to allow users to keep the data safely even when non-secure
 
 It is safe, for example, to keep your go-hash data in Dropbox or other cloud services as long as a strong master password is chosen.
 
+However, making sure that no one gets their hands on your data in the first place is the best way to keep it safe.
+For that reason, I highly recommend using [Keybase](https://keybase.io/), a free service (similar to Dropbox, but also has chats and more),
+that encrypts everything end-to-end, meaning that you can keep all your data encrypted and synchronized between your devices
+without any more effort than using Dropbox.
+
 The database format used by go-hash was inspired by [PWS3](https://metacpan.org/pod/distribution/Crypt-PWSafe3/lib/Crypt/PWSafe3/Databaseformat.pm)
 and modified to benefit from the strengths of [Argon2](https://github.com/p-h-c/phc-winner-argon2).
 The format is described in detail later in this document.
