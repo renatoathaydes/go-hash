@@ -28,14 +28,12 @@ type command interface {
 
 type entryCommand struct{}
 type groupCommand struct{}
-type removeCommand struct{}
 type cpCommand struct{}
 type gotoCommand struct{}
 
 var commands = map[string]command{
 	"group": groupCommand{},
 	"entry": entryCommand{},
-	"rm":    removeCommand{},
 	"cp":    cpCommand{},
 	"goto":  gotoCommand{},
 }
@@ -121,12 +119,40 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 }
 
 func (cmd entryCommand) help() string {
-	return "shows/creates an entry."
+	return "manages entries."
 }
 
 func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Reader) string {
-	groupName := args
-	if len(groupName) > 0 {
+	var (
+		CreateGroup bool
+		DeleteGroup bool
+		RenameGroup bool
+		groupName   string
+	)
+	switch {
+	case strings.HasPrefix(args, "-c"):
+		CreateGroup = true
+		groupName = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-d"):
+		DeleteGroup = true
+		groupName = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-r"):
+		RenameGroup = true
+		groupName = strings.TrimSpace(args[2:])
+	default:
+		groupName = args
+	}
+
+	switch {
+	case CreateGroup:
+		return createGroup(groupName, state, group, reader)
+	case DeleteGroup:
+		return removeGroup(groupName, state, group, reader)
+	case RenameGroup:
+		return renameGroup(groupName, state, group, reader)
+
+	// no option selected, list or offer to create group
+	case len(groupName) > 0:
 		_, groupExists := (*state)[groupName]
 		if groupExists {
 			return groupName
@@ -134,15 +160,9 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 
 		newGroupWanted := yesNoQuestion("Group does not exist, do you want to create it? [y/n]: ", reader)
 		if newGroupWanted {
-			for {
-				ok := createNewGroup(state, groupName)
-				if ok {
-					return groupName
-				}
-				groupName = read(reader, "Please enter another name for the group: ")
-			}
+			return createGroup(groupName, state, group, reader)
 		}
-	} else {
+	default:
 		groupLen := len(*state)
 		switch groupLen {
 		case 1:
@@ -160,28 +180,7 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 }
 
 func (cmd groupCommand) help() string {
-	return "enters/creates a group."
-}
-
-func (cmd removeCommand) run(state *State, group, args string, reader *bufio.Reader) string {
-	arg := args
-	doRemoveEntry := true // if false, remove group
-	switch {
-	case strings.HasPrefix(args, "-e"):
-		arg = strings.TrimSpace(args[2:])
-	case strings.HasPrefix(args, "-g"):
-		arg = strings.TrimSpace(args[2:])
-		doRemoveEntry = false
-	}
-
-	if doRemoveEntry {
-		return removeEntry(arg, state, group, reader)
-	}
-	return removeGroup(arg, state, group, reader)
-}
-
-func (cmd removeCommand) help() string {
-	return "removes a group or an entry of the current group."
+	return "manages groups."
 }
 
 func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
@@ -309,7 +308,7 @@ func renameEntry(entry string, state *State, group string, reader *bufio.Reader)
 				if len(newName) == 0 {
 					println("Error: no name provided.")
 				} else if _, taken := findEntryIndex(&entries, newName); taken {
-					println("Error: name alredy taken. Please choose another name.")
+					println("Error: name alredy taken.")
 				} else {
 					entries[index].Name = newName
 					break
@@ -334,6 +333,56 @@ func editEntry(entry string, state *State, group string, reader *bufio.Reader) s
 		}
 	} else {
 		println("Error: please provide the name of the entry to be edited.")
+	}
+	return group
+}
+
+func createGroup(name string, state *State, group string, reader *bufio.Reader) string {
+	if len(name) > 0 {
+		_, ok := (*state)[name]
+		if !ok {
+			(*state)[name] = []LoginInfo{}
+			return name
+		}
+		println("Error: group already exists.")
+	} else {
+		println("Error: please provide a name for the group.")
+	}
+	return group
+}
+
+func renameGroup(name string, state *State, group string, reader *bufio.Reader) string {
+	if len(name) > 0 {
+		entries, ok := (*state)[name]
+		if ok {
+			var newGroupName string
+			for {
+				newGroupName = read(reader, "Enter a new name for the group: ")
+				if len(newGroupName) > 0 {
+					_, exists := (*state)[newGroupName]
+					if exists {
+						println("Error: name already taken.")
+					} else {
+						break
+					}
+				} else {
+					println("Error: no name provided.")
+				}
+			}
+			if name == "default" {
+				(*state)["default"] = []LoginInfo{}
+			} else {
+				delete(*state, name)
+			}
+			(*state)[newGroupName] = entries
+			if name == group {
+				return newGroupName
+			}
+		} else {
+			println("Error: Group does not exist.")
+		}
+	} else {
+		println("Error: please provide the name of the group to be renamed.")
 	}
 	return group
 }
@@ -366,6 +415,9 @@ func removeGroup(groupName string, state *State, group string, reader *bufio.Rea
 				}
 				if goAhead {
 					delete(*state, groupName)
+					if group == groupName {
+						return "default" // exit the deleted group
+					}
 				}
 			}
 		} else {
@@ -425,20 +477,6 @@ func yesNoQuestion(question string, reader *bufio.Reader) bool {
 		}
 	}
 
-}
-
-func createNewGroup(state *State, name string) bool {
-	if len(name) > 0 {
-		_, ok := (*state)[name]
-		if !ok {
-			(*state)[name] = []LoginInfo{}
-			return true
-		}
-		println("Error: group already exists")
-	} else {
-		println("Error: please provide a name for the group")
-	}
-	return false
 }
 
 func createOrEditEntry(name string, reader *bufio.Reader, entry *LoginInfo) (result LoginInfo) {
