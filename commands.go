@@ -327,6 +327,8 @@ func editEntry(entry string, state *State, group string, reader *bufio.Reader) s
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
 		if index, exists := findEntryIndex(&entries, entry); exists {
+			fmt.Printf("Editing entry:\n%s\n", entries[index].String())
+			println("\nHint: to keep the current value for a field, don't enter a new value.\n")
 			entries[index] = createOrEditEntry(entry, reader, &entries[index])
 		} else {
 			println("Error: entry does not exist.")
