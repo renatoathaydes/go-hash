@@ -61,19 +61,53 @@ func usage(w io.Writer) {
 }
 
 func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Reader) string {
-	newEntry := args
-	if len(newEntry) > 0 {
+	var (
+		CreateEntry bool
+		DeleteEntry bool
+		RenameEntry bool
+		EditEntry   bool
+		entry       string
+	)
+	switch {
+	case strings.HasPrefix(args, "-c"):
+		CreateEntry = true
+		entry = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-d"):
+		DeleteEntry = true
+		entry = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-r"):
+		RenameEntry = true
+		entry = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-e"):
+		EditEntry = true
+		entry = strings.TrimSpace(args[2:])
+	default:
+		entry = args
+	}
+
+	switch {
+	case CreateEntry:
+		return createEntry(entry, state, group, reader)
+	case DeleteEntry:
+		return removeEntry(entry, state, group, reader)
+	case RenameEntry:
+		return renameEntry(entry, state, group, reader)
+	case EditEntry:
+		return editEntry(entry, state, group, reader)
+
+	// no option provided, the next cases list or offer to create an entry
+	case len(entry) > 0:
 		entries, _ := (*state)[group]
-		if entryIndex, found := findEntryIndex(&entries, newEntry); found {
+		if entryIndex, found := findEntryIndex(&entries, entry); found {
 			println(entries[entryIndex].String())
 		} else {
 			newEntryWanted := yesNoQuestion("Entry does not exist, do you want to create it? [y/n]: ", reader)
 			if newEntryWanted {
-				entry := createNewEntry(newEntry, reader)
-				(*state)[group] = append(entries, entry)
+				newEntry := createOrEditEntry(entry, reader, nil)
+				(*state)[group] = append(entries, newEntry)
 			}
 		}
-	} else {
+	default:
 		entries := (*state)[group]
 		fmt.Printf("Showing group %s:\n\n", groupDescription(group, &entries, false))
 		if len(entries) > 0 {
@@ -131,19 +165,19 @@ func (cmd groupCommand) help() string {
 
 func (cmd removeCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	arg := args
-	removeEntry := true // if false, remove group
+	doRemoveEntry := true // if false, remove group
 	switch {
 	case strings.HasPrefix(args, "-e"):
 		arg = strings.TrimSpace(args[2:])
 	case strings.HasPrefix(args, "-g"):
 		arg = strings.TrimSpace(args[2:])
-		removeEntry = false
+		doRemoveEntry = false
 	}
 
-	if removeEntry {
-		return rmEntry(arg, state, group, reader)
+	if doRemoveEntry {
+		return removeEntry(arg, state, group, reader)
 	}
-	return rmGroup(arg, state, group, reader)
+	return removeGroup(arg, state, group, reader)
 }
 
 func (cmd removeCommand) help() string {
@@ -251,7 +285,60 @@ func (cmd gotoCommand) help() string {
 	return "Goes to the URL associated with an entry and copies its password to the clipboard."
 }
 
-func rmGroup(groupName string, state *State, group string, reader *bufio.Reader) string {
+func createEntry(entry string, state *State, group string, reader *bufio.Reader) string {
+	if len(entry) > 0 {
+		entries, _ := (*state)[group]
+		if _, exists := findEntryIndex(&entries, entry); exists {
+			println("Error: entry already exists.")
+		} else {
+			newEntry := createOrEditEntry(entry, reader, nil)
+			(*state)[group] = append(entries, newEntry)
+		}
+	} else {
+		println("Error: please provide the name of the entry to be created.")
+	}
+	return group
+}
+
+func renameEntry(entry string, state *State, group string, reader *bufio.Reader) string {
+	if len(entry) > 0 {
+		entries, _ := (*state)[group]
+		if index, exists := findEntryIndex(&entries, entry); exists {
+			for {
+				newName := read(reader, "Please enter the new entry name: ")
+				if len(newName) == 0 {
+					println("Error: no name provided.")
+				} else if _, taken := findEntryIndex(&entries, newName); taken {
+					println("Error: name alredy taken. Please choose another name.")
+				} else {
+					entries[index].Name = newName
+					break
+				}
+			}
+		} else {
+			println("Error: entry does not exist.")
+		}
+	} else {
+		println("Error: please provide the name of the entry to be renamed.")
+	}
+	return group
+}
+
+func editEntry(entry string, state *State, group string, reader *bufio.Reader) string {
+	if len(entry) > 0 {
+		entries, _ := (*state)[group]
+		if index, exists := findEntryIndex(&entries, entry); exists {
+			entries[index] = createOrEditEntry(entry, reader, &entries[index])
+		} else {
+			println("Error: entry does not exist.")
+		}
+	} else {
+		println("Error: please provide the name of the entry to be edited.")
+	}
+	return group
+}
+
+func removeGroup(groupName string, state *State, group string, reader *bufio.Reader) string {
 	if len(groupName) == 0 {
 		println("Error: please provide the name of the group to remove.")
 	} else {
@@ -288,10 +375,9 @@ func rmGroup(groupName string, state *State, group string, reader *bufio.Reader)
 	return group
 }
 
-func rmEntry(entryName string, state *State, group string, reader *bufio.Reader) string {
+func removeEntry(entryName string, state *State, group string, reader *bufio.Reader) string {
 	if len(entryName) == 0 {
 		println("Error: please provide the name of the entry to remove.")
-		println("Hint: to remove a whole group, use the -g option, e.g. rm -g <group-name>.")
 	} else {
 		removed := false
 		entries, ok := (*state)[group]
@@ -355,7 +441,7 @@ func createNewGroup(state *State, name string) bool {
 	return false
 }
 
-func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
+func createOrEditEntry(name string, reader *bufio.Reader, entry *LoginInfo) (result LoginInfo) {
 	username := read(reader, "Enter username: ")
 
 	var URL string
@@ -377,16 +463,19 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 	description := read(reader, "Enter description: ")
 
 	var password string
-	answerAccepted := false
-	for !answerAccepted {
-		answer := strings.ToLower(read(reader, "Generate password? [y/n]: "))
-		if len(answer) == 0 || answer == "y" {
+	doChangePassword := true
+	if entry != nil {
+		doChangePassword = yesNoQuestion("Do you want to change the password? [y/n]: ", reader)
+	}
+
+	if doChangePassword {
+		doGeneratePassword := yesNoQuestion("Generate password? [y/n]: ", reader)
+		if doGeneratePassword {
 			password = generatePassword()
 			fmt.Printf("Generated password for %s!\n", name)
 			fmt.Printf("Hint: To copy it to the clipboard, type 'cp -p %s'.\n", name)
-			answerAccepted = true
-		} else if answer == "n" {
-			for !answerAccepted {
+		} else {
+			for {
 				print("Please enter a password (at least 4 characters): ")
 				pass, err := terminal.ReadPassword(int(syscall.Stdin))
 				println("")
@@ -395,13 +484,26 @@ func createNewEntry(name string, reader *bufio.Reader) (result LoginInfo) {
 				}
 				password = string(pass)
 				if len(password) < 4 {
-					println("Password too short, please try again!")
+					println("Error: Password too short, please try again!")
 				} else {
-					answerAccepted = true
+					break
 				}
 			}
-		} else {
-			println("Please answer y or n (no answer means y)")
+		}
+	}
+
+	if entry != nil {
+		if username == "" {
+			username = entry.Username
+		}
+		if URL == "" {
+			URL = entry.URL
+		}
+		if password == "" {
+			password = entry.Password
+		}
+		if description == "" {
+			description = entry.Description
 		}
 	}
 
