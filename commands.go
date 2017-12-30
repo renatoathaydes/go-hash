@@ -518,17 +518,20 @@ func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader)
 	} else {
 		entryIndex, found := findEntryIndex(&entries, entry)
 		if found {
-			var err error
+			var content string
 			switch {
 			case CopyPassword:
-				err = clipboard.WriteAll(entries[entryIndex].Password)
+				content = entries[entryIndex].Password
 			case CopyUsername:
-				err = clipboard.WriteAll(entries[entryIndex].Username)
+				content = entries[entryIndex].Username
 			default:
 				panic("Unexpected field case")
 			}
+			err := clipboard.WriteAll(content)
 			if err != nil {
 				fmt.Printf("Error: unable to copy! Reason: %s\n", err.Error())
+			} else {
+				go removeFromClipboardAfterDelay(content)
 			}
 		} else {
 			fmt.Printf("Error: entry '%s' does not exist.\n", entry)
@@ -914,5 +917,13 @@ func yesNoQuestion(question string, reader *bufio.Reader) bool {
 		} else {
 			println("Please answer y or n (no answer means y)")
 		}
+	}
+}
+
+func removeFromClipboardAfterDelay(content string) {
+	time.Sleep(60 * time.Second)
+	c, err := clipboard.ReadAll()
+	if err == nil && c == content {
+		clipboard.WriteAll("")
 	}
 }
