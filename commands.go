@@ -767,6 +767,10 @@ func open(url string) error {
 	var cmd string
 	var args []string
 
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		url = "https://" + url
+	}
+
 	switch runtime.GOOS {
 	case "windows":
 		cmd = "cmd"
