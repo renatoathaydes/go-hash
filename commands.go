@@ -475,25 +475,24 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 }
 
 func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
-	parts := splitTrimN(args, 2)
-	field := parts[0]
-	entry := parts[1]
+	CopyPassword := false
+	CopyUsername := false
 	entries := (*state)[group]
-	const (
-		fieldUsername = iota
-		fieldPassword
-		fieldUnknown
-	)
-	fieldCase := fieldUnknown
-	switch field {
-	case "-p":
-		fieldCase = fieldPassword
-	case "-u":
-		fieldCase = fieldUsername
-	default:
-		println("Error: Unknown option: " + field)
+	var entry string
+	switch {
+	case strings.HasPrefix(args, "-p"):
+		CopyPassword = true
+		entry = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-u"):
+		CopyUsername = true
+		entry = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-"):
+		println("Error: Unknown option.")
 		println("Hint: valid options are: -p (password), -u (username)")
 		return group
+	default:
+		CopyUsername = true
+		entry = args
 	}
 
 	showEntryHint := func() {
@@ -520,10 +519,10 @@ func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader)
 		entryIndex, found := findEntryIndex(&entries, entry)
 		if found {
 			var err error
-			switch fieldCase {
-			case fieldPassword:
+			switch {
+			case CopyPassword:
 				err = clipboard.WriteAll(entries[entryIndex].Password)
-			case fieldUsername:
+			case CopyUsername:
 				err = clipboard.WriteAll(entries[entryIndex].Username)
 			default:
 				panic("Unexpected field case")
