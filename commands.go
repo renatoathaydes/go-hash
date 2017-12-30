@@ -24,6 +24,12 @@ type command interface {
 
 	// help returns helpful information about how to use this command.
 	help() string
+
+	// a full explanation of how this command works.
+	longHelp() string
+
+	// the auto-completer for this command
+	completer() readline.PrefixCompleterInterface
 }
 
 type entryCommand struct{}
@@ -37,6 +43,8 @@ var commands = map[string]command{
 	"cp":    cpCommand{},
 	"goto":  gotoCommand{},
 }
+
+// ============= CLI creation ============= //
 
 func createCompleter() *readline.PrefixCompleter {
 	var cmdItems = make([]readline.PrefixCompleterInterface, len(commands)+1)
@@ -57,6 +65,62 @@ func usage(w io.Writer) {
 	io.WriteString(w, "\nType 'exit' to exit a group or quit if you are not within a group.\n")
 	io.WriteString(w, "Type 'help' to print this message.\n")
 }
+
+// ============= Commands: Short help ============= //
+
+func (cmd entryCommand) help() string {
+	return "manages entries within the current group."
+}
+
+func (cmd groupCommand) help() string {
+	return "manages/enters groups."
+}
+
+func (cmd cpCommand) help() string {
+	return "Copies an entry's field to the clipboard. Fields: -p = password, -u = username."
+}
+
+func (cmd gotoCommand) help() string {
+	return "Goes to the URL associated with an entry and copies its password to the clipboard."
+}
+
+// ============= Commands: Long help ============= //
+
+func (cmd entryCommand) longHelp() string {
+	return "manages entries within the current group."
+}
+
+func (cmd groupCommand) longHelp() string {
+	return "manages/enters groups."
+}
+
+func (cmd cpCommand) longHelp() string {
+	return "Copies an entry's field to the clipboard. Fields: -p = password, -u = username."
+}
+
+func (cmd gotoCommand) longHelp() string {
+	return "Goes to the URL associated with an entry and copies its password to the clipboard."
+}
+
+// ============= Commands: Auto-completers ============= //
+
+func (cmd entryCommand) completer() readline.PrefixCompleterInterface {
+	return readline.PcItem("entry")
+}
+
+func (cmd groupCommand) completer() readline.PrefixCompleterInterface {
+	return readline.PcItem("group")
+}
+
+func (cmd cpCommand) completer() readline.PrefixCompleterInterface {
+	return readline.PcItem("cp")
+}
+
+func (cmd gotoCommand) completer() readline.PrefixCompleterInterface {
+	return readline.PcItem("goto")
+}
+
+// ============= Commands: run implementations ============= //
 
 func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	var (
@@ -79,6 +143,9 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 	case strings.HasPrefix(args, "-e"):
 		EditEntry = true
 		entry = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-"):
+		println("Error: unknown option. Type 'help entry' for usage.")
+		return group
 	default:
 		entry = args
 	}
@@ -118,10 +185,6 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 	return group
 }
 
-func (cmd entryCommand) help() string {
-	return "manages entries."
-}
-
 func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	var (
 		CreateGroup bool
@@ -139,6 +202,9 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 	case strings.HasPrefix(args, "-r"):
 		RenameGroup = true
 		groupName = strings.TrimSpace(args[2:])
+	case strings.HasPrefix(args, "-"):
+		println("Error: unknown option. Type 'help group' for usage.")
+		return group
 	default:
 		groupName = args
 	}
@@ -177,10 +243,6 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 	}
 
 	return group
-}
-
-func (cmd groupCommand) help() string {
-	return "manages groups."
 }
 
 func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
@@ -248,10 +310,6 @@ func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader)
 	return group
 }
 
-func (cmd cpCommand) help() string {
-	return "Copies an entry's field to the clipboard. Fields: -p = password, -u = username."
-}
-
 func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reader) string {
 	entryName := args
 	doCopyPass := true
@@ -280,9 +338,7 @@ func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reade
 	return group
 }
 
-func (cmd gotoCommand) help() string {
-	return "Goes to the URL associated with an entry and copies its password to the clipboard."
-}
+// ============= Entry helper functions ============= //
 
 func createEntry(entry string, state *State, group string, reader *bufio.Reader) string {
 	if len(entry) > 0 {
@@ -339,96 +395,6 @@ func editEntry(entry string, state *State, group string, reader *bufio.Reader) s
 	return group
 }
 
-func createGroup(name string, state *State, group string, reader *bufio.Reader) string {
-	if len(name) > 0 {
-		_, ok := (*state)[name]
-		if !ok {
-			(*state)[name] = []LoginInfo{}
-			return name
-		}
-		println("Error: group already exists.")
-	} else {
-		println("Error: please provide a name for the group.")
-	}
-	return group
-}
-
-func renameGroup(name string, state *State, group string, reader *bufio.Reader) string {
-	if len(name) > 0 {
-		entries, ok := (*state)[name]
-		if ok {
-			var newGroupName string
-			for {
-				newGroupName = read(reader, "Enter a new name for the group: ")
-				if len(newGroupName) > 0 {
-					_, exists := (*state)[newGroupName]
-					if exists {
-						println("Error: name already taken.")
-					} else {
-						break
-					}
-				} else {
-					println("Error: no name provided.")
-				}
-			}
-			if name == "default" {
-				(*state)["default"] = []LoginInfo{}
-			} else {
-				delete(*state, name)
-			}
-			(*state)[newGroupName] = entries
-			if name == group {
-				return newGroupName
-			}
-		} else {
-			println("Error: Group does not exist.")
-		}
-	} else {
-		println("Error: please provide the name of the group to be renamed.")
-	}
-	return group
-}
-
-func removeGroup(groupName string, state *State, group string, reader *bufio.Reader) string {
-	if len(groupName) == 0 {
-		println("Error: please provide the name of the group to remove.")
-	} else {
-		entries, ok := (*state)[groupName]
-		entriesLen := len(entries)
-		if ok {
-			goAhead := entriesLen == 0 // if there are no entries, don't bother asking for confirmation
-			if groupName == "default" {
-				if !goAhead {
-					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove all (%d) entries of the default group? [y/n]: ",
-						entriesLen), reader)
-					if goAhead {
-						(*state)[groupName] = []LoginInfo{}
-					}
-				} else {
-					println("Warning: cannot delete the default group and there are no entries to remove.")
-				}
-			} else {
-				if !goAhead {
-					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove group '%s' and all of its (%d) entries? [y/n]: ",
-						groupName, entriesLen), reader)
-					if !goAhead {
-						println("Aborted!")
-					}
-				}
-				if goAhead {
-					delete(*state, groupName)
-					if group == groupName {
-						return "default" // exit the deleted group
-					}
-				}
-			}
-		} else {
-			println("Error: group does not exist.")
-		}
-	}
-	return group
-}
-
 func removeEntry(entryName string, state *State, group string, reader *bufio.Reader) string {
 	if len(entryName) == 0 {
 		println("Error: please provide the name of the entry to remove.")
@@ -447,38 +413,6 @@ func removeEntry(entryName string, state *State, group string, reader *bufio.Rea
 		}
 	}
 	return group
-}
-
-func groupDescription(name string, entries *[]LoginInfo, tabularFormat bool) string {
-	var entriesSize string
-	entriesLen := len(*entries)
-	switch entriesLen {
-	case 0:
-		entriesSize = "empty"
-	case 1:
-		entriesSize = "1 entry"
-	default:
-		entriesSize = fmt.Sprintf("%d entries", entriesLen)
-	}
-	template := "%-16s (%s)"
-	if !tabularFormat {
-		template = "%s (%s)"
-	}
-	return fmt.Sprintf(template, name, entriesSize)
-}
-
-func yesNoQuestion(question string, reader *bufio.Reader) bool {
-	for {
-		yn := strings.ToLower(read(reader, question))
-		if len(yn) == 0 || yn == "y" {
-			return true
-		} else if yn == "n" {
-			return false
-		} else {
-			println("Please answer y or n (no answer means y)")
-		}
-	}
-
 }
 
 func createOrEditEntry(name string, reader *bufio.Reader, entry *LoginInfo) (result LoginInfo) {
@@ -573,6 +507,139 @@ func removeEntryFrom(entries *[]LoginInfo, name string) ([]LoginInfo, bool) {
 	return *entries, false
 }
 
+// ============= Group helper functions ============= //
+
+func createGroup(name string, state *State, group string, reader *bufio.Reader) string {
+	if len(name) > 0 {
+		_, ok := (*state)[name]
+		if !ok {
+			(*state)[name] = []LoginInfo{}
+			return name
+		}
+		println("Error: group already exists.")
+	} else {
+		println("Error: please provide a name for the group.")
+	}
+	return group
+}
+
+func renameGroup(name string, state *State, group string, reader *bufio.Reader) string {
+	if len(name) > 0 {
+		entries, ok := (*state)[name]
+		if ok {
+			var newGroupName string
+			for {
+				newGroupName = read(reader, "Enter a new name for the group: ")
+				if len(newGroupName) > 0 {
+					_, exists := (*state)[newGroupName]
+					if exists {
+						println("Error: name already taken.")
+					} else {
+						break
+					}
+				} else {
+					println("Error: no name provided.")
+				}
+			}
+			if name == "default" {
+				(*state)["default"] = []LoginInfo{}
+			} else {
+				delete(*state, name)
+			}
+			(*state)[newGroupName] = entries
+			if name == group {
+				return newGroupName
+			}
+		} else {
+			println("Error: Group does not exist.")
+		}
+	} else {
+		println("Error: please provide the name of the group to be renamed.")
+	}
+	return group
+}
+
+func removeGroup(groupName string, state *State, group string, reader *bufio.Reader) string {
+	if len(groupName) == 0 {
+		println("Error: please provide the name of the group to remove.")
+	} else {
+		entries, ok := (*state)[groupName]
+		entriesLen := len(entries)
+		if ok {
+			goAhead := entriesLen == 0 // if there are no entries, don't bother asking for confirmation
+			if groupName == "default" {
+				if !goAhead {
+					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove all (%d) entries of the default group? [y/n]: ",
+						entriesLen), reader)
+					if goAhead {
+						(*state)[groupName] = []LoginInfo{}
+					}
+				} else {
+					println("Warning: cannot delete the default group and there are no entries to remove.")
+				}
+			} else {
+				if !goAhead {
+					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove group '%s' and all of its (%d) entries? [y/n]: ",
+						groupName, entriesLen), reader)
+					if !goAhead {
+						println("Aborted!")
+					}
+				}
+				if goAhead {
+					delete(*state, groupName)
+					if group == groupName {
+						return "default" // exit the deleted group
+					}
+				}
+			}
+		} else {
+			println("Error: group does not exist.")
+		}
+	}
+	return group
+}
+
+func groupDescription(name string, entries *[]LoginInfo, tabularFormat bool) string {
+	var entriesSize string
+	entriesLen := len(*entries)
+	switch entriesLen {
+	case 0:
+		entriesSize = "empty"
+	case 1:
+		entriesSize = "1 entry"
+	default:
+		entriesSize = fmt.Sprintf("%d entries", entriesLen)
+	}
+	template := "%-16s (%s)"
+	if !tabularFormat {
+		template = "%s (%s)"
+	}
+	return fmt.Sprintf(template, name, entriesSize)
+}
+
+// ============= Goto helper functions ============= //
+
+// open the specified URL in the default browser of the user.
+// Copied from https://stackoverflow.com/questions/39320371/how-start-web-server-to-open-page-in-browser-in-golang
+func open(url string) error {
+	var cmd string
+	var args []string
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = "cmd"
+		args = []string{"/c", "start"}
+	case "darwin":
+		cmd = "open"
+	default: // "linux", "freebsd", "openbsd", "netbsd"
+		cmd = "xdg-open"
+	}
+	args = append(args, url)
+	return exec.Command(cmd, args...).Start()
+}
+
+// ============= Other helper functions ============= //
+
 func generatePassword() (password string) {
 	charRange := encryption.DefaultPasswordCharRange()
 
@@ -596,25 +663,6 @@ func generatePassword() (password string) {
 	return
 }
 
-// open the specified URL in the default browser of the user.
-// Copied from https://stackoverflow.com/questions/39320371/how-start-web-server-to-open-page-in-browser-in-golang
-func open(url string) error {
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "windows":
-		cmd = "cmd"
-		args = []string{"/c", "start"}
-	case "darwin":
-		cmd = "open"
-	default: // "linux", "freebsd", "openbsd", "netbsd"
-		cmd = "xdg-open"
-	}
-	args = append(args, url)
-	return exec.Command(cmd, args...).Start()
-}
-
 func read(reader *bufio.Reader, prompt string) string {
 	print(prompt)
 	a, err := reader.ReadString('\n')
@@ -622,4 +670,18 @@ func read(reader *bufio.Reader, prompt string) string {
 		panic(err)
 	}
 	return strings.TrimSpace(a)
+}
+
+func yesNoQuestion(question string, reader *bufio.Reader) bool {
+	for {
+		yn := strings.ToLower(read(reader, question))
+		if len(yn) == 0 || yn == "y" {
+			return true
+		} else if yn == "n" {
+			return false
+		} else {
+			println("Please answer y or n (no answer means y)")
+		}
+	}
+
 }
