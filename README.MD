@@ -304,6 +304,12 @@ Or just omit any options:
 go-hash» cp google
 ```
 
+### cmp
+
+The `cmp` command can be used to change the opened database's master password.
+
+Just type `cmp` and you will be prompted for the old and new passwords.
+
 ## Database format
 
 go-hash uses the following database format:
@@ -350,8 +356,8 @@ adapted from PasswordSafe's
 
 ## Building
 
-The [release](release) folder contains releases for several platforms, but if your platform is not included
-or you want to build from source, just clone this repository, and build as follows:
+The [releases page](https://github.com/renatoathaydes/go-hash/releases) contains executables for several platforms
+but if your platform is not included or you want to build from source, just clone this repository and build it as follows:
 
 ```
 git clone git@github.com:renatoathaydes/go-hash.git
