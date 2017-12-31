@@ -109,17 +109,19 @@ func splitTrimN(text string, max int) []string {
 }
 
 func runCliLoop(state *State, dbPath string, userPass string) {
-	grBox := groupBox{group: "default"}
+	grBox := stringBox{value: "default"}
+	mpBox := stringBox{value: userPass}
+	userPass = ""
 	reader := bufio.NewReader(os.Stdin)
 	prompt := func() string {
 		var modifier string
-		if len(grBox.group) > 0 && grBox.group != "default" {
-			modifier = ":" + grBox.group
+		if len(grBox.value) > 0 && grBox.value != "default" {
+			modifier = ":" + grBox.value
 		}
 		return fmt.Sprintf("\033[31mgo-hash%s»\033[0m ", modifier)
 	}
 
-	commands := createCommands(state, &grBox)
+	commands := createCommands(state, &grBox, &mpBox)
 
 	cli, err := readline.NewEx(&readline.Config{
 		Prompt:          prompt(),
@@ -153,16 +155,16 @@ Loop:
 		case "quit":
 			break Loop
 		case "exit":
-			if grBox.group != "default" {
-				grBox.group = "default"
+			if grBox.value != "default" {
+				grBox.value = "default"
 			} else {
 				break Loop
 			}
 		default:
 			command := commands[cmd]
 			if command != nil {
-				grBox.group = command.run(state, grBox.group, args, reader)
-				err := WriteDatabase(dbPath, userPass, state)
+				grBox.value = command.run(state, grBox.value, args, reader)
+				err := WriteDatabase(dbPath, mpBox.value, state)
 				if err != nil {
 					println("Error writing to database: " + err.Error())
 				}

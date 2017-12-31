@@ -51,13 +51,17 @@ type gotoCommand struct {
 	entries func() []string
 }
 
-type groupBox struct {
-	group string
+type cmpCommand struct {
+	mpBox *stringBox
+}
+
+type stringBox struct {
+	value string
 }
 
 // ============= CLI creation ============= //
 
-func createCommands(state *State, grBox *groupBox) map[string]command {
+func createCommands(state *State, groupBox *stringBox, masterPassBox *stringBox) map[string]command {
 	getGroups := func() []string {
 		result := make([]string, len(*state), len(*state))
 		i := 0
@@ -69,7 +73,7 @@ func createCommands(state *State, grBox *groupBox) map[string]command {
 	}
 
 	getEntries := func() []string {
-		entries := (*state)[grBox.group]
+		entries := (*state)[groupBox.value]
 		result := make([]string, len(entries), len(entries))
 		for i, e := range entries {
 			result[i] = e.Name
@@ -89,6 +93,9 @@ func createCommands(state *State, grBox *groupBox) map[string]command {
 		},
 		"goto": gotoCommand{
 			entries: getEntries,
+		},
+		"cmp": cmpCommand{
+			mpBox: masterPassBox,
 		},
 	}
 
@@ -132,6 +139,10 @@ func (cmd cpCommand) help() string {
 
 func (cmd gotoCommand) help() string {
 	return "goes to the URL associated with an entry and copies its password to the clipboard."
+}
+
+func (cmd cmpCommand) help() string {
+	return "changes the master password."
 }
 
 // ============= Commands: Long help ============= //
@@ -254,6 +265,14 @@ Examples:
   goto hello
 `
 
+const cmpUsage = `
+=== cmp command usage ===
+
+The cmp command is used to change the master password.
+
+No options or arguments are accepted.
+`
+
 func (cmd helpCommand) longHelp() string {
 	return helpUsage
 }
@@ -272,6 +291,10 @@ func (cmd cpCommand) longHelp() string {
 
 func (cmd gotoCommand) longHelp() string {
 	return gotoUsage
+}
+
+func (cmd cmpCommand) longHelp() string {
+	return cmpUsage
 }
 
 // ============= Commands: Auto-completers ============= //
@@ -326,6 +349,10 @@ func (cmd gotoCommand) completer() readline.PrefixCompleterInterface {
 	return readline.PcItem("goto",
 		cmp,
 		readline.PcItem("-n", cmp))
+}
+
+func (cmd cmpCommand) completer() readline.PrefixCompleterInterface {
+	return readline.PcItem("cmp")
 }
 
 // ============= Commands: run implementations ============= //
@@ -565,6 +592,32 @@ func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reade
 		}
 	} else {
 		fmt.Printf("Error: entry '%s' does not exist.\n", entryName)
+	}
+	return group
+}
+
+func (cmd cmpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+	if len(args) > 0 {
+		println("Error: the cmp command does not accept any arguments.")
+	} else {
+		attempts := 5
+		for {
+			print("Current password: ")
+			pass, err := terminal.ReadPassword(int(syscall.Stdin))
+			println("")
+			if err != nil {
+				panic(err)
+			}
+			if string(pass) == cmd.mpBox.value {
+				cmd.mpBox.value = createPassword()
+				break
+			} else if attempts == 0 {
+				panic("Too many failed attempts.")
+			} else {
+				println("Error: incorrect password. Please try again.")
+			}
+			attempts--
+		}
 	}
 	return group
 }
