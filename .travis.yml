@@ -21,4 +21,5 @@ deploy:
     - releases/go-hash-windows-386
   skip_cleanup: true
   on:
+    tags: true
     repo: renatoathaydes/go-hash

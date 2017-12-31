@@ -3,6 +3,8 @@
 > This project's basic functionality is completed but the security has not yet been reviewed by experts!
   Use at your own risk.
 
+[![Build Status](https://travis-ci.org/renatoathaydes/go-hash.svg?branch=master)](https://travis-ci.org/renatoathaydes/go-hash)
+
 Current status:
 
 - [x] database format definition
