@@ -298,7 +298,7 @@ go-hash» cp google
 go-hash uses the following database format:
 
 ```
-version | salt | B1 | B2 | B3 | B4 | len(E) | E | HMAC
+version | salt | B1 | B2 | B3 | B4 | HMAC | E
 ```
 
 where:
@@ -313,16 +313,17 @@ where:
 * `B2` (32 bytes) the most-significant half of the `K` key after AES encryption with `P` used as key.		
 * `B3` (32 bytes) the least-significant half of the `L` key after AES encryption with `P` used as key.
 * `B4` (32 bytes) the most-significant half of the `L` key after AES encryption with `P` used as key.		
-* `len(E)` (4 bytes) the hexadecimal length, in bytes, of the encrypted database entries.
-* `E` the encrypted database entries. Encryption is performed using AES256 with `K` as the key.
-* `HMAC` The HMAC of the salt followed by the unencrypted, serialized version of the database entries,
+* `HMAC` (64 bytes) The HMAC of the salt followed by the unencrypted, serialized version of the database entries,
    with SHA512 as the underlying hash function using `L` as the key.
+* `E` the encrypted database entries. Encryption is performed using AES256 with `K` as the key.
 
 The Argon2 parameters used to hash the master password are part of the database format version used, and for the current version, `GH00`, are:
 
 * `time` = 4
 * `memory` = 32 * 1024
 * `key length` = 32
+
+The encrypted length of the database proper (excluding metadat) is limited to 64 MB.
 
 This format is based on the paper by Paolo Gasti and Kasper B. Rasmussen on 
 [The Security of Password Manager Database Formats](http://www.6nelweb.com/bio/papers/pwvault-ESORICS12-ext.pdf) and 

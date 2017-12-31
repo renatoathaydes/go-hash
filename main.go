@@ -177,7 +177,7 @@ Loop:
 func main() {
 	var userPass string
 	var state State
-	println("Go-Hash version " + DBVERSION)
+	println("Go-Hash version " + DBVersion)
 	println("")
 
 	var dbFilePath string

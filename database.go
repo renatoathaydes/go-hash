@@ -2,17 +2,20 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/renatoathaydes/go-hash/encryption"
 )
 
-// DBVERSION is the current version of the go-hash database format.
-const DBVERSION = "GH00"
+// DBVersion is the current version of the go-hash database format.
+const DBVersion = "GH00"
+
+// MinDBLength      V | S  | B1 | B2 | B3 | B4 | MAC| E
+const MinDBLength = 4 + 32 + 32 + 32 + 32 + 32 + 32 + 4
+
+// MaxDBLength the maximum allowed size of a database
+const MaxDBLength = 64 * 1000 * 1024
 
 // WriteDatabase writes the encrypted database to the given filePath with the provided state and key.
 func WriteDatabase(filePath, password string, data *State) error {
@@ -63,17 +66,17 @@ func WriteDatabase(filePath, password string, data *State) error {
 		return err
 	}
 
-	encryptedStateLen := len(encryptedState)
-	log.Printf("Writing encrypted payload with length = %d", encryptedStateLen)
-	lenE := []byte(fmt.Sprintf("%4x", encryptedStateLen))
+	if len(encryptedState) > MaxDBLength {
+		return errors.New("database too big! Cannot save it to avoid file bomb attacks. Please remove entries you don't need")
+	}
 
 	mac := encryption.Hmac(L, append(salt, stateBytes...))
 	log.Printf("Generated HMAC with length %d", len(mac))
 
 	fileOffset := 0
 
-	// version | salt | B1 | B2 | B3 | B4 | len(E) | E | HMAC
-	for _, b := range [][]byte{[]byte(DBVERSION), salt, B1, B2, B3, B4, lenE, encryptedState, mac} {
+	// version | salt | B1 | B2 | B3 | B4 | HMAC | E
+	for _, b := range [][]byte{[]byte(DBVersion), salt, B1, B2, B3, B4, mac, encryptedState} {
 		_, err = file.WriteAt(b, int64(fileOffset))
 		if err != nil {
 			return err
@@ -93,6 +96,16 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	}
 	defer file.Close()
 
+	fileStat, err := file.Stat()
+	if err != nil {
+		panic(err)
+	}
+
+	// limit the size of the DB
+	if fileStat.Size() < MinDBLength || fileStat.Size() > 32000000 {
+		panic(dbError)
+	}
+
 	var fileOffset int64
 
 	version := make([]byte, 4, 4)
@@ -102,7 +115,7 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	}
 	fileOffset += 4
 
-	if string(version) != DBVERSION {
+	if string(version) != DBVersion {
 		panic("Unsupported database version")
 	}
 
@@ -178,17 +191,18 @@ func ReadDatabase(filePath string, password string) (State, error) {
 
 	log.Printf("Got K=%x", K)
 	log.Printf("Got L=%x", L)
-	log.Printf("Reading length of encrypted payload")
+	log.Printf("Reading HMAC")
 
-	payloadLen := make([]byte, 4, 4)
-	_, err = file.ReadAt(payloadLen, fileOffset)
+	mac := make([]byte, 64, 64)
+	_, err = file.ReadAt(mac, fileOffset)
 	if err != nil {
 		panic(err)
 	}
-	fileOffset += 4
+	fileOffset += 64
 
-	plen, err := strconv.ParseInt(strings.TrimSpace(string(payloadLen)), 16, 0)
-	if err != nil {
+	plen := fileStat.Size() - fileOffset
+
+	if plen > MaxDBLength {
 		panic(dbError)
 	}
 
@@ -204,22 +218,6 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	stateBytes, err := encryption.Decrypt(K, payload)
 	if err != nil {
 		panic(dbError)
-	}
-
-	fileStat, err := file.Stat()
-	if err != nil {
-		panic(err)
-	}
-
-	remainingLen := fileStat.Size() - fileOffset
-	log.Printf("Reading HMAC at end of file, HMAC len = %d", remainingLen)
-	if remainingLen <= 0 {
-		panic(dbError)
-	}
-	mac := make([]byte, remainingLen, remainingLen)
-	_, err = file.ReadAt(mac, fileOffset)
-	if err != nil {
-		panic(err)
 	}
 
 	expectedMac := encryption.Hmac(L, append(salt, stateBytes...))
