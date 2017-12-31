@@ -17,6 +17,7 @@ Current status:
 - [x] CLI `entry` command
 - [x] CLI `group` command
 - [x] CLI `cp` (copy) command
+- [x] CLI `cmp` (change master password) command
 - [x] CLI `goto` command
 
 ## Description
@@ -38,7 +39,7 @@ The format is described in detail later in this document.
 
 ## Installing
 
-Download the appropriate file for your system from the [releases page](https://github.com/renatoathaydes/go-hash/releases).
+Download the appropriate executable for your system from the [releases page](https://github.com/renatoathaydes/go-hash/releases).
 
 > Mac users should use the `go-hash-darwin-amd64` file.
 
