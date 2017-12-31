@@ -13,6 +13,7 @@ Current status:
 - [x] Load custom database location
 - [x] Generate random password
 - [ ] Customize rules for generated passwords
+- [x] Change master password
 - [x] Clear clipboard some time after copying content to it
 - [x] CLI `entry` command
 - [x] CLI `group` command
