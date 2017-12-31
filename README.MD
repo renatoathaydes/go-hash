@@ -36,7 +36,9 @@ The format is described in detail later in this document.
 
 ## Installing
 
-TBD
+Currently, you need to build from source if you want to use go-hash.
+
+See the [Building](https://github.com/renatoathaydes/go-hash#building) section.
 
 ## Introduction
 
@@ -336,3 +338,43 @@ adapted from PasswordSafe's
 * Support custom rules for generated password (to work around websites that contrain the password format).
 * Create cross-platform GUIs for non-techies.
 * Create browser extensions for Chrome, FireFox, MS Edge, Safari.
+
+## Building
+
+The [release](release) folder contains releases for several platforms, but if your platform is not included
+or you want to build from source, just clone this repository, and build as follows:
+
+```
+git clone git@github.com:renatoathaydes/go-hash.git
+
+# install dep if you don't have it
+go get -u github.com/golang/dep/cmd/dep
+
+# sync dependencies
+dep ensure
+
+# build or install
+go build
+```
+
+To run the tests:
+
+```
+make
+
+# or
+
+go test ./..
+```
+
+To run the benchmarks:
+
+```
+make bench
+```
+
+To create a release for all of the selected targets:
+
+```
+VERSION=x.x.x make release
+```
