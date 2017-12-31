@@ -1,7 +1,6 @@
 # go-hash
 
-> This project's basic functionality is completed but the security has not yet been reviewed by experts!
-  Use at your own risk.
+> IMPORTANT: This project uses the latest crypto technologies to protect your data, but it comes with no warranties. If you find a weakness in the design of the database format or implementation, please create an issue immediately.
 
 [![Build Status](https://travis-ci.org/renatoathaydes/go-hash.svg?branch=master)](https://travis-ci.org/renatoathaydes/go-hash) [![Release](https://img.shields.io/github/release/renatoathaydes/go-hash.svg)](https://github.com/renatoathaydes/go-hash/releases/latest)
 
@@ -39,9 +38,12 @@ The format is described in detail later in this document.
 
 ## Installing
 
-Currently, you need to build from source if you want to use go-hash.
+Download the appropriate file for your system from the [releases page](https://github.com/renatoathaydes/go-hash/releases).
 
-See the [Building](https://github.com/renatoathaydes/go-hash#building) section.
+> Mac users should use the `go-hash-darwin-amd64` file.
+
+If you cannot find the correct file for your system, you will have to build from source.
+See the [Building](https://github.com/renatoathaydes/go-hash#building) section for details.
 
 ## Introduction
 
