@@ -1,6 +1,0 @@
-package: github.com/renatoathaydes/go-hash
-import:
-- package: golang.org/x/crypto
-  subpackages:
-  - bcrypt
-- package: github.com/mitchellh/go-homedir

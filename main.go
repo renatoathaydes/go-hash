@@ -122,10 +122,9 @@ func runCliLoop(state *State, dbPath string, userPass string) {
 	commands := createCommands(state, &grBox)
 
 	cli, err := readline.NewEx(&readline.Config{
-		Prompt:            prompt(),
-		AutoComplete:      createCompleter(commands),
-		InterruptPrompt:   "^C",
-		HistorySearchFold: true,
+		Prompt:          prompt(),
+		AutoComplete:    createCompleter(commands),
+		InterruptPrompt: "^C",
 	})
 	if err != nil {
 		panic(err)

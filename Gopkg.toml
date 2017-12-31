@@ -1,0 +1,23 @@
+[[constraint]]
+  branch = "master"
+  name = "github.com/aead/argon2"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/atotto/clipboard"
+
+[[constraint]]
+  name = "github.com/chzyer/readline"
+  version = "1.4.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/mitchellh/go-homedir"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  version = "1.2.0"
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/crypto"
