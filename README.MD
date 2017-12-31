@@ -373,8 +373,10 @@ To run the benchmarks:
 make bench
 ```
 
-To create a release for all of the selected targets:
+To create a local release for all of the selected targets:
 
 ```
-VERSION=x.x.x make release
+make release
 ```
+
+The local release files go in the `releases` folder.
