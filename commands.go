@@ -236,6 +236,7 @@ Options:
   -p <name>   copy the password.
 
 If an option is not provided, the username associated with the chosen entry is copied.
+Information is automatically removed from the clipboard after one minute.
 
 Examples:
 

@@ -279,6 +279,9 @@ The `cp` (copy) command can be used to copy an entry's username and password to 
 
 To copy the password to the clipboard, use the `-p` option:
 
+> Notice that go-hash automatically cleans up the clipboard after 1 minute, so sensitive data does not
+  remain in the clipboard indefinitely.
+
 ```
 # copy the password for the "google" entry in the current group
 go-hash» cp -p google
