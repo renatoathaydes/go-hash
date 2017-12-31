@@ -298,7 +298,7 @@ go-hash» cp google
 go-hash uses the following database format:
 
 ```
-version | salt | H | B1 | B2 | B3 | B4 | len(E) | E | HMAC
+version | salt | B1 | B2 | B3 | B4 | len(E) | E | HMAC
 ```
 
 where:
@@ -307,7 +307,6 @@ where:
 * `salt` (32 bytes) random sequence used to hash the user's master password.
 * `P` (32 bytes) [Argon2](https://github.com/p-h-c/phc-winner-argon2)-hash of the user's master password.
   Notice that the hash is calculated based on the user's master password and the salt.
-* `H` (64 bytes) SHA512 checksum of the password hash `P`.
 * `K` (32 bytes) random key used to encrypt the database entries.
 * `L` (32 bytes) random key used to calculate the HMAC of the database.
 * `B1` (32 bytes) the least-significant half of the `K` key after AES encryption with `P` used as key.
