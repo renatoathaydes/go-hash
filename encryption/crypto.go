@@ -18,7 +18,7 @@ import (
 
 const (
 	// TIME complexity parameter for Argon2, used by PasswordHash.
-	TIME uint32 = 4
+	TIME uint32 = 8
 
 	// MEMORY complexity parameter for Argon2, used by PasswordHash.
 	MEMORY uint32 = 32 * 1024

@@ -319,7 +319,7 @@ where:
 
 The Argon2 parameters used to hash the master password are part of the database format version used, and for the current version, `GH00`, are:
 
-* `time` = 4
+* `time` = 8
 * `memory` = 32 * 1024
 * `key length` = 32
 
