@@ -4,7 +4,21 @@ notifications:
   email: false
 go:
   - 1.9.x
-
 install:
   - go get -u github.com/golang/dep/cmd/dep
   - dep ensure
+before_deploy:
+  - make release
+deploy:
+  provider: releases
+  api_key:
+    secure: AgvsYpVTF3DsFEYTlccuaMjRySn7GyS/p5JF0C9AMZWKqPuN78tmEAuFtUeiShDotmYb8ReQXalXEY0lkkoUpIJ2YM7ATGVewp6pTvwogoB34XEWceRKiLloIogx0b13Vrjt1lbLzCAfri6PAE68p1+B30pzCBZCn5O64QQtAxklhpOJKInwH2rTBg/BGdWdH0dY/TaR6UfQAjNvtwY3pnO+bGW287aZKzAjlqw5ay9slvwS7kAxtuB9UOFWeEFzGLNoJeSDZBrucUDzUSjHFTdniJBPH3znyN+zurK+3ufLFJtX5/eg71M3QtXFzEXGbDeDNdSSQ6NA3nh41CzLScZP2N0eBeDkO+OSZ49UbAv4tABxLY1sAqSxKzeHIg8b8zZtfFuku4gKbbKgjJGXvaqzIlmjykM0WYGTjqneQNaQK4ksiVss65T4BH+FslBg0Lkt58UJ9bU3rPS9nUci/+h5V6tggW6Kq9zKqmjtpcRmEn2w4Jy3VmmXHuH+lBe5+xMim8xrdFcVPBlNxfmy+g2nHDhlnXBEVAfoJPpNHP7nc3CGuirzd0xL2/mzEFUjpWJD6ZOjXRYmdIsaJxicPfHBlZD7dPFBwt27s0e9WljumLVZ2opT/RgnlfndPH6OzYiJPj0c4kh0fU8GZP9Sjk3XrlYzUtGKWRaSudBTleQ=
+  file:
+    - releases/go-hash-darwin-amd64
+    - releases/go-hash-linux-amd64
+    - releases/go-hash-linux-386
+    - releases/go-hash-windows-amd64
+    - releases/go-hash-windows-386
+    
+  on:
+    repo: renatoathaydes/go-hash
