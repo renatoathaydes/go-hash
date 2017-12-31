@@ -19,6 +19,6 @@ deploy:
     - releases/go-hash-linux-386
     - releases/go-hash-windows-amd64
     - releases/go-hash-windows-386
-    
+  skip_cleanup: true
   on:
     repo: renatoathaydes/go-hash
