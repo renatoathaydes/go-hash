@@ -163,7 +163,7 @@ Loop:
 		default:
 			command := commands[cmd]
 			if command != nil {
-				grBox.value = command.run(state, grBox.value, args, reader)
+				command.run(state, grBox.value, args, reader)
 				err := WriteDatabase(dbPath, mpBox.value, state)
 				if err != nil {
 					println("Error writing to database: " + err.Error())

@@ -18,8 +18,8 @@ import (
 )
 
 type command interface {
-	// run a command with the given state, within the given group, returning the group the user should manipulate after this command is run.
-	run(state *State, group string, args string, reader *bufio.Reader) string
+	// run a command with the given state, within the given group.
+	run(state *State, group string, args string, reader *bufio.Reader)
 
 	// help returns helpful information about how to use this command.
 	help() string
@@ -40,7 +40,8 @@ type entryCommand struct {
 }
 
 type groupCommand struct {
-	groups func() []string
+	groups   func() []string
+	groupBox *stringBox
 }
 
 type cpCommand struct {
@@ -83,7 +84,8 @@ func createCommands(state *State, groupBox *stringBox, masterPassBox *stringBox)
 
 	var commands = map[string]command{
 		"group": groupCommand{
-			groups: getGroups,
+			groups:   getGroups,
+			groupBox: groupBox,
 		},
 		"entry": entryCommand{
 			entries: getEntries,
@@ -357,7 +359,7 @@ func (cmd cmpCommand) completer() readline.PrefixCompleterInterface {
 
 // ============= Commands: run implementations ============= //
 
-func (cmd helpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+func (cmd helpCommand) run(state *State, group, args string, reader *bufio.Reader) {
 	commands := cmd.commands
 	if args == "" {
 		println("go-hash commands:\n")
@@ -374,11 +376,9 @@ func (cmd helpCommand) run(state *State, group, args string, reader *bufio.Reade
 			println("Error: command does not exist.")
 		}
 	}
-
-	return group
 }
 
-func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Reader) {
 	var (
 		CreateEntry bool
 		DeleteEntry bool
@@ -401,20 +401,20 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 		entry = strings.TrimSpace(args[2:])
 	case strings.HasPrefix(args, "-"):
 		println("Error: unknown option. Type 'help entry' for usage.")
-		return group
+		return
 	default:
 		entry = args
 	}
 
 	switch {
 	case CreateEntry:
-		return createEntry(entry, state, group, reader)
+		createEntry(entry, state, group, reader)
 	case DeleteEntry:
-		return removeEntry(entry, state, group, reader)
+		removeEntry(entry, state, group, reader)
 	case RenameEntry:
-		return renameEntry(entry, state, group, reader)
+		renameEntry(entry, state, group, reader)
 	case EditEntry:
-		return editEntry(entry, state, group, reader)
+		editEntry(entry, state, group, reader)
 
 	// no option provided, the next cases list or offer to create an entry
 	case len(entry) > 0:
@@ -438,10 +438,9 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 		}
 		println("\nHint: To show the details of a single entry, type 'entry <name>'.")
 	}
-	return group
 }
 
-func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Reader) {
 	var (
 		CreateGroup bool
 		DeleteGroup bool
@@ -460,29 +459,29 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 		groupName = strings.TrimSpace(args[2:])
 	case strings.HasPrefix(args, "-"):
 		println("Error: unknown option. Type 'help group' for usage.")
-		return group
+		return
 	default:
 		groupName = args
 	}
 
 	switch {
 	case CreateGroup:
-		return createGroup(groupName, state, group, reader)
+		cmd.groupBox.value = createGroup(groupName, state, group, reader)
 	case DeleteGroup:
-		return removeGroup(groupName, state, group, reader)
+		cmd.groupBox.value = removeGroup(groupName, state, group, reader)
 	case RenameGroup:
-		return renameGroup(groupName, state, group, reader)
+		cmd.groupBox.value = renameGroup(groupName, state, group, reader)
 
 	// no option selected, list or offer to create group
 	case len(groupName) > 0:
 		_, groupExists := (*state)[groupName]
 		if groupExists {
-			return groupName
-		}
-
-		newGroupWanted := yesNoQuestion("Group does not exist, do you want to create it? [y/n]: ", reader)
-		if newGroupWanted {
-			return createGroup(groupName, state, group, reader)
+			cmd.groupBox.value = groupName
+		} else {
+			newGroupWanted := yesNoQuestion("Group does not exist, do you want to create it? [y/n]: ", reader)
+			if newGroupWanted {
+				cmd.groupBox.value = createGroup(groupName, state, group, reader)
+			}
 		}
 	default:
 		groupLen := len(*state)
@@ -497,11 +496,9 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 		}
 		println("\nHint: Type 'entry' to list all entries in the current group.")
 	}
-
-	return group
 }
 
-func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader) {
 	CopyPassword := false
 	CopyUsername := false
 	entries := (*state)[group]
@@ -516,7 +513,7 @@ func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader)
 	case strings.HasPrefix(args, "-"):
 		println("Error: Unknown option.")
 		println("Hint: valid options are: -p (password), -u (username)")
-		return group
+		return
 	default:
 		CopyUsername = true
 		entry = args
@@ -565,10 +562,9 @@ func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader)
 			showEntryHint()
 		}
 	}
-	return group
 }
 
-func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reader) {
 	entryName := args
 	doCopyPass := true
 	if strings.HasPrefix(args, "-n ") {
@@ -576,7 +572,7 @@ func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reade
 		doCopyPass = false
 	} else if len(args) == 0 {
 		println("Error: please provide the name of the entry to goto.")
-		return group
+		return
 	}
 
 	entries := (*state)[group]
@@ -587,16 +583,15 @@ func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reade
 		} else {
 			go open(URL)
 			if doCopyPass {
-				return cpCommand{}.run(state, group, "-p "+entryName, reader)
+				cpCommand{}.run(state, group, "-p "+entryName, reader)
 			}
 		}
 	} else {
 		fmt.Printf("Error: entry '%s' does not exist.\n", entryName)
 	}
-	return group
 }
 
-func (cmd cmpCommand) run(state *State, group, args string, reader *bufio.Reader) string {
+func (cmd cmpCommand) run(state *State, group, args string, reader *bufio.Reader) {
 	if len(args) > 0 {
 		println("Error: the cmp command does not accept any arguments.")
 	} else {
@@ -619,12 +614,11 @@ func (cmd cmpCommand) run(state *State, group, args string, reader *bufio.Reader
 			attempts--
 		}
 	}
-	return group
 }
 
 // ============= Entry helper functions ============= //
 
-func createEntry(entry string, state *State, group string, reader *bufio.Reader) string {
+func createEntry(entry string, state *State, group string, reader *bufio.Reader) {
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
 		if _, exists := findEntryIndex(&entries, entry); exists {
@@ -636,10 +630,9 @@ func createEntry(entry string, state *State, group string, reader *bufio.Reader)
 	} else {
 		println("Error: please provide the name of the entry to be created.")
 	}
-	return group
 }
 
-func renameEntry(entry string, state *State, group string, reader *bufio.Reader) string {
+func renameEntry(entry string, state *State, group string, reader *bufio.Reader) {
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
 		if index, exists := findEntryIndex(&entries, entry); exists {
@@ -660,10 +653,9 @@ func renameEntry(entry string, state *State, group string, reader *bufio.Reader)
 	} else {
 		println("Error: please provide the name of the entry to be renamed.")
 	}
-	return group
 }
 
-func editEntry(entry string, state *State, group string, reader *bufio.Reader) string {
+func editEntry(entry string, state *State, group string, reader *bufio.Reader) {
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
 		if index, exists := findEntryIndex(&entries, entry); exists {
@@ -676,10 +668,9 @@ func editEntry(entry string, state *State, group string, reader *bufio.Reader) s
 	} else {
 		println("Error: please provide the name of the entry to be edited.")
 	}
-	return group
 }
 
-func removeEntry(entryName string, state *State, group string, reader *bufio.Reader) string {
+func removeEntry(entryName string, state *State, group string, reader *bufio.Reader) {
 	if len(entryName) == 0 {
 		println("Error: please provide the name of the entry to remove.")
 	} else {
@@ -696,7 +687,6 @@ func removeEntry(entryName string, state *State, group string, reader *bufio.Rea
 			println("Hint: To enter a group called <group-name>, type 'group group-name'.")
 		}
 	}
-	return group
 }
 
 func createOrEditEntry(name string, reader *bufio.Reader, entry *LoginInfo) (result LoginInfo) {
