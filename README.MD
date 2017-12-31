@@ -3,7 +3,7 @@
 > This project's basic functionality is completed but the security has not yet been reviewed by experts!
   Use at your own risk.
 
-[![Build Status](https://travis-ci.org/renatoathaydes/go-hash.svg?branch=master)](https://travis-ci.org/renatoathaydes/go-hash)
+[![Build Status](https://travis-ci.org/renatoathaydes/go-hash.svg?branch=master)](https://travis-ci.org/renatoathaydes/go-hash) [![Release](https://img.shields.io/github/release/renatoathaydes/go-hash.svg)](https://github.com/renatoathaydes/go-hash/releases/latest)
 
 Current status:
 
