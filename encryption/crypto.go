@@ -11,9 +11,7 @@ import (
 	"math/big"
 	"runtime"
 
-	// FIXME use golang argon2 when this bug fix is released: https://github.com/golang/go/issues/23245
-	//"github.com/golang/crypto/argon2"
-	"github.com/aead/argon2"
+	"github.com/golang/crypto/argon2"
 )
 
 const (

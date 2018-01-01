@@ -1,9 +1,5 @@
 [[constraint]]
   branch = "master"
-  name = "github.com/aead/argon2"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/atotto/clipboard"
 
 [[constraint]]
