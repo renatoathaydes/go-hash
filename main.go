@@ -91,7 +91,7 @@ func openDatabase(dbFilePath string) (state State, userPass string) {
 		userPass = string(bytePassword)
 		state, err = ReadDatabase(dbFilePath, userPass)
 		if err != nil {
-			println("An error occurred: " + err.Error())
+			panic(err)
 		} else {
 			return
 		}
