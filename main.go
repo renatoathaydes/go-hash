@@ -133,6 +133,8 @@ func runCliLoop(state *State, dbPath string, userPass string) {
 	}
 	defer cli.Close()
 
+	eofCount := 0
+
 Loop:
 	for {
 		cli.SetPrompt(prompt())
@@ -144,8 +146,16 @@ Loop:
 				continue
 			}
 		} else if err == io.EOF {
-			break Loop
+			eofCount++
+			if eofCount > 10 { // protect against infinite loop
+				panic("EOF received several times unexpectedly!")
+			}
+			continue // in Windows, we get EOFs all the time
+		} else if err != nil {
+			panic(err)
 		}
+
+		eofCount = 0
 
 		parts := splitTrimN(line, 2)
 		cmd := parts[0]
