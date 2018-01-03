@@ -139,20 +139,23 @@ Loop:
 	for {
 		cli.SetPrompt(prompt())
 		line, err := cli.Readline()
-		if err == readline.ErrInterrupt {
-			if len(line) == 0 {
-				break Loop
-			} else {
+		if err != nil {
+			switch err {
+			case readline.ErrInterrupt:
+				if len(line) == 0 {
+					println("Warning: Received interrupt, exiting.")
+					break Loop
+				}
 				continue
+			case io.EOF:
+				eofCount++
+				if eofCount > 10 { // protect against infinite loop
+					panic("EOF received several times unexpectedly!")
+				}
+				continue // in Windows, we get EOFs all the time
+			default:
+				panic(err)
 			}
-		} else if err == io.EOF {
-			eofCount++
-			if eofCount > 10 { // protect against infinite loop
-				panic("EOF received several times unexpectedly!")
-			}
-			continue // in Windows, we get EOFs all the time
-		} else if err != nil {
-			panic(err)
 		}
 
 		eofCount = 0
