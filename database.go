@@ -4,18 +4,28 @@ import (
 	"errors"
 	"log"
 	"os"
+	"runtime"
 
 	"github.com/renatoathaydes/go-hash/encryption"
 )
 
-// DBVersion is the current version of the go-hash database format.
-const DBVersion = "GH00"
+const (
+	// DBVersion is the current version of the go-hash database format.
+	DBVersion = "GH01"
 
-// MinDBLength      V | S  | B1 | B2 | B3 | B4 | MAC| E
-const MinDBLength = 4 + 32 + 32 + 32 + 32 + 32 + 32 + 4
+	// PrevDBVersion is the previous version of the database format. go-hash automatically migrates
+	// databases from its previous version.
+	PrevDBVersion = "GH00"
 
-// MaxDBLength the maximum allowed size of a database
-const MaxDBLength = 64 * 1000 * 1024
+	// MinDBLength      V | S  | B1 | B2 | B3 | B4 | MAC| E
+	MinDBLength = 4 + 32 + 32 + 32 + 32 + 32 + 32 + 4
+
+	// MaxDBLength the maximum allowed size of a database
+	MaxDBLength = 64 * 1000 * 1024
+
+	// Argon2Threads the fixed number of threads to use for the Argon2 Hash function.
+	Argon2Threads uint8 = 4
+)
 
 // WriteDatabase writes the encrypted database to the given filePath with the provided state and key.
 func WriteDatabase(filePath, password string, data *State) error {
@@ -32,7 +42,7 @@ func WriteDatabase(filePath, password string, data *State) error {
 
 	salt := encryption.GenerateSalt()
 	log.Printf("Writing salt: %x", salt)
-	P := encryption.PasswordHash(password, salt)
+	P := encryption.PasswordHash(password, salt, Argon2Threads)
 	log.Printf("Calculated P: %x", P)
 
 	K := encryption.GenerateRandomBytes(32)
@@ -115,7 +125,16 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	}
 	fileOffset += 4
 
-	if string(version) != DBVersion {
+	var threads uint8
+
+	switch string(version) {
+	case PrevDBVersion:
+		threads = uint8(runtime.NumCPU())
+		log.Printf("Reading old version of database, threads param set to %d", threads)
+	case DBVersion:
+		threads = Argon2Threads
+		log.Printf("Database version: %s", DBVersion)
+	default:
 		panic("Unsupported database version")
 	}
 
@@ -128,7 +147,7 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	fileOffset += 32
 	log.Println("Salt read successfully, calculating P.")
 
-	P := encryption.PasswordHash(password, salt)
+	P := encryption.PasswordHash(password, salt, threads)
 	log.Printf("Calculated P, reading Bs. P = %x", P)
 
 	B1 := make([]byte, 32, 32)

@@ -319,7 +319,7 @@ version | salt | B1 | B2 | B3 | B4 | HMAC | E
 
 where:
 
-* `version` (4 bytes) version of the database ("GH00").
+* `version` (4 bytes) version of the database ("GH00" or "GH01").
 * `salt` (32 bytes) random sequence used to hash the user's master password.
 * `P` (32 bytes) [Argon2](https://github.com/p-h-c/phc-winner-argon2)-hash of the user's master password.
   Notice that the hash is calculated based on the user's master password and the salt.
@@ -333,11 +333,19 @@ where:
    with SHA512 as the underlying hash function using `L` as the key.
 * `E` the encrypted database entries. Encryption is performed using AES256 with `K` as the key.
 
-The Argon2 parameters used to hash the master password are part of the database format version used, and for the current version, `GH00`, are:
+The Argon2 parameters used to hash the master password are part of the database format version used, and for the current version, `GH01`, are:
 
 * `time` = 8
 * `memory` = 32 * 1024
 * `key length` = 32
+* `threads` = 4
+
+For version `GH00`:
+
+* `time` = 8
+* `memory` = 32 * 1024
+* `key length` = 32
+* `threads` = number of CPUs (which means it was not reproducible across machines)
 
 The encrypted length of the database proper (excluding metadat) is limited to 64 MB.
 

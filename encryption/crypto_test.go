@@ -9,19 +9,19 @@ import (
 
 func TestPasswordHash(t *testing.T) {
 	salt := GenerateSalt()
-	h1 := PasswordHash("userpassword", salt)
-	h2 := PasswordHash("userpassword", salt)
+	h1 := PasswordHash("userpassword", salt, 4)
+	h2 := PasswordHash("userpassword", salt, 4)
 	require.Equal(t, h1, h2)
 
 	salt2 := GenerateSalt()
-	h3 := PasswordHash("userpassword", salt2)
+	h3 := PasswordHash("userpassword", salt2, 4)
 	require.NotEqual(t, h1, h3)
 
-	h4 := PasswordHash("username", salt)
+	h4 := PasswordHash("username", salt, 4)
 	require.NotEqual(t, h1, h4)
 	require.NotEqual(t, h3, h4)
 
-	h5 := PasswordHash("username", salt)
+	h5 := PasswordHash("username", salt, 4)
 	require.Equal(t, h4, h5)
 }
 
@@ -62,7 +62,7 @@ func BenchmarkPasswordHash(b *testing.B) {
 	salt := GenerateSalt()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		blackHole = PasswordHash("weak pass", salt)
+		blackHole = PasswordHash("weak pass", salt, 4)
 	}
 }
 
