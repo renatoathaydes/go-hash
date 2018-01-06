@@ -45,6 +45,12 @@ Download the appropriate executable for your system from the [releases page](htt
 If you cannot find the correct file for your system, you will have to build from source.
 See the [Building](https://github.com/renatoathaydes/go-hash#building) section for details.
 
+Go developer? Just go get it:
+
+```
+go get -u github.com/renatoathaydes/go-hash
+```
+
 ## Introduction
 
 go-hash keeps your information safe in an encrypted file. This file is called a go-hash database.
