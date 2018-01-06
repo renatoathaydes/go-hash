@@ -364,30 +364,33 @@ adapted from PasswordSafe's
 ## Building
 
 The [releases page](https://github.com/renatoathaydes/go-hash/releases) contains executables for several platforms
-but if your platform is not included or you want to build from source, just clone this repository and build it as follows:
+but if your platform is not included or you want to build from source, just clone this repository and build it as explained below.
+
+### Clone this repo
+
+* Using git:
 
 ```
 git clone git@github.com:renatoathaydes/go-hash.git
-
-# install dep if you don't have it
-go get -u github.com/golang/dep/cmd/dep
-
-# sync dependencies
-dep ensure
-
-# build or install
-go build
+cd go-hash
 ```
 
-To run the tests:
+* Using Go:
+
+```
+go get -u github.com/renatoathaydes/go-hash
+cd $GOPATH/src/github.com/renatoathaydes/go-hash
+```
+
+### Build using make
+
+The easiest way to build is with make. From the root directory, just run it:
 
 ```
 make
-
-# or
-
-go test ./..
 ```
+
+This will get anything else required to build, then build, install and run the tests.
 
 To run the benchmarks:
 
@@ -402,3 +405,29 @@ make release
 ```
 
 The local release files go in the `releases` folder.
+
+> To see a list of all targets, in a shell that supports it (most shells), just type `make ` and hit Tab.
+Otherwise, see the [Makefile](Makefile).
+
+### Build with just go
+
+Make is not necessary to build, it's just use for convenience.
+
+If you don't have make or just don't want to use it, here's how to build go-hash without it:
+
+```
+# install dep if you don't have it
+go get -u github.com/golang/dep/cmd/dep
+
+# sync dependencies
+dep ensure
+
+# build or install
+go build
+```
+
+Run tests with:
+
+```
+go test ./...
+```
