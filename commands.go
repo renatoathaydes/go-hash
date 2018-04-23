@@ -542,6 +542,14 @@ func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader)
 		showEntryHint()
 	} else {
 		entryIndex, found := findEntryIndex(&entries, entry)
+		if !found && strings.Contains(entry, ":") {
+			// split up group:entry from user input
+			parts := strings.SplitN(entry, ":", 2)
+			group = parts[0]
+			entry = parts[1]
+			entries = (*state)[group]
+			entryIndex, found = findEntryIndex(&entries, entry)
+		}
 		if found {
 			var content string
 			switch {
