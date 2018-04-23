@@ -419,16 +419,7 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 
 	// no option provided, the next cases list or offer to create an entry
 	case len(entry) > 0:
-		entries, _ := (*state)[group]
-		if entryIndex, found := findEntryIndex(&entries, entry); found {
-			println(entries[entryIndex].String())
-		} else {
-			newEntryWanted := yesNoQuestion("Entry does not exist, do you want to create it? [y/n]: ", reader)
-			if newEntryWanted {
-				newEntry := createOrEditEntry(entry, reader, nil)
-				(*state)[group] = append(entries, newEntry)
-			}
-		}
+		createEntry(entry, state, group, reader)
 	default:
 		entries := (*state)[group]
 		fmt.Printf("Showing group %s:\n\n", groupDescription(group, &entries, false))
@@ -479,7 +470,7 @@ func (cmd groupCommand) run(state *State, group, args string, reader *bufio.Read
 		if groupExists {
 			cmd.groupBox.value = groupName
 		} else {
-			newGroupWanted := yesNoQuestion("Group does not exist, do you want to create it? [y/n]: ", reader)
+			newGroupWanted := yesNoQuestion("Group does not exist, do you want to create it?", reader, true)
 			if newGroupWanted {
 				cmd.groupBox.value = createGroup(groupName, state, group, reader)
 			}
@@ -574,10 +565,10 @@ func (cmd cpCommand) run(state *State, group, args string, reader *bufio.Reader)
 }
 
 func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reader) {
-	entryName := args
+	entry := args
 	doCopyPass := true
 	if strings.HasPrefix(args, "-n ") {
-		entryName = strings.TrimSpace(args[3:])
+		entry = strings.TrimSpace(args[3:])
 		doCopyPass = false
 	} else if len(args) == 0 {
 		println("Error: please provide the name of the entry to goto.")
@@ -585,18 +576,29 @@ func (cmd gotoCommand) run(state *State, group, args string, reader *bufio.Reade
 	}
 
 	entries := (*state)[group]
-	if entryIndex, found := findEntryIndex(&entries, entryName); found {
+
+	entryIndex, found := findEntryIndex(&entries, entry)
+	if !found && strings.Contains(entry, ":") {
+		// split up group:entry from user input
+		parts := strings.SplitN(entry, ":", 2)
+		group = parts[0]
+		entry = parts[1]
+		entries = (*state)[group]
+		entryIndex, found = findEntryIndex(&entries, entry)
+	}
+
+	if found {
 		URL := entries[entryIndex].URL
 		if len(URL) == 0 {
 			println("Error: entry does not have a URL to go to.")
 		} else {
 			go open(URL)
 			if doCopyPass {
-				cpCommand{}.run(state, group, "-p "+entryName, reader)
+				cpCommand{}.run(state, group, "-p "+entry, reader)
 			}
 		}
 	} else {
-		fmt.Printf("Error: entry '%s' does not exist.\n", entryName)
+		fmt.Printf("Error: entry '%s' does not exist.\n", entry)
 	}
 }
 
@@ -630,6 +632,31 @@ func (cmd cmpCommand) run(state *State, group, args string, reader *bufio.Reader
 func createEntry(entry string, state *State, group string, reader *bufio.Reader) {
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
+		if strings.Contains(entry, ":") {
+			// split up group:entry from user input
+			parts := strings.SplitN(entry, ":", 2)
+			candidateGroup := parts[0]
+			candidateEntry := parts[1]
+			useCandidates := ask2OptionsQuestion(
+				"Option 1: to create entry '"+candidateEntry+"' in group '"+candidateGroup+"'.\n"+
+					"Option 2: to create entry '"+entry+"' in group '"+group+"'.\n\n"+
+					"Which option do you prefer?", reader, "1", "2", true)
+			if useCandidates {
+				group = candidateGroup
+				entry = candidateEntry
+				var groupExists bool
+				entries, groupExists = (*state)[group]
+				if !groupExists {
+					newGroupWanted := yesNoQuestion("Group does not exist, do you want to create it?", reader, true)
+					if newGroupWanted {
+						createGroup(group, state, group, reader)
+					} else {
+						return
+					}
+				}
+			}
+		}
+
 		if _, exists := findEntryIndex(&entries, entry); exists {
 			println("Error: entry already exists.")
 		} else {
@@ -644,7 +671,18 @@ func createEntry(entry string, state *State, group string, reader *bufio.Reader)
 func renameEntry(entry string, state *State, group string, reader *bufio.Reader) {
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
-		if index, exists := findEntryIndex(&entries, entry); exists {
+
+		entryIndex, found := findEntryIndex(&entries, entry)
+		if !found && strings.Contains(entry, ":") {
+			// split up group:entry from user input
+			parts := strings.SplitN(entry, ":", 2)
+			group = parts[0]
+			entry = parts[1]
+			entries = (*state)[group]
+			entryIndex, found = findEntryIndex(&entries, entry)
+		}
+
+		if found {
 			for {
 				newName := read(reader, "Please enter the new entry name: ")
 				if len(newName) == 0 {
@@ -652,7 +690,7 @@ func renameEntry(entry string, state *State, group string, reader *bufio.Reader)
 				} else if _, taken := findEntryIndex(&entries, newName); taken {
 					println("Error: name alredy taken.")
 				} else {
-					entries[index].Name = newName
+					entries[entryIndex].Name = newName
 					break
 				}
 			}
@@ -667,10 +705,21 @@ func renameEntry(entry string, state *State, group string, reader *bufio.Reader)
 func editEntry(entry string, state *State, group string, reader *bufio.Reader) {
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
-		if index, exists := findEntryIndex(&entries, entry); exists {
-			fmt.Printf("Editing entry:\n%s\n", entries[index].String())
+
+		entryIndex, found := findEntryIndex(&entries, entry)
+		if !found && strings.Contains(entry, ":") {
+			// split up group:entry from user input
+			parts := strings.SplitN(entry, ":", 2)
+			group = parts[0]
+			entry = parts[1]
+			entries = (*state)[group]
+			entryIndex, found = findEntryIndex(&entries, entry)
+		}
+
+		if found {
+			fmt.Printf("Editing entry:\n%s\n", entries[entryIndex].String())
 			println("\nHint: to keep the current value for a field, don't enter a new value.\n")
-			entries[index] = createOrEditEntry(entry, reader, &entries[index])
+			entries[entryIndex] = createOrEditEntry(entry, reader, &entries[entryIndex])
 		} else {
 			println("Error: entry does not exist.")
 		}
@@ -683,14 +732,7 @@ func removeEntry(entryName string, state *State, group string, reader *bufio.Rea
 	if len(entryName) == 0 {
 		println("Error: please provide the name of the entry to remove.")
 	} else {
-		removed := false
-		entries, ok := (*state)[group]
-		if ok {
-			entries, removed = removeEntryFrom(&entries, entryName)
-			if removed {
-				(*state)[group] = entries
-			}
-		}
+		removed := removeEntryFrom(state, group, entryName)
 		if !removed {
 			println("Error: entry does not exist. Are you within the correct group?")
 			println("Hint: To enter a group called <group-name>, type 'group group-name'.")
@@ -722,11 +764,11 @@ func createOrEditEntry(name string, reader *bufio.Reader, entry *LoginInfo) (res
 	var password string
 	doChangePassword := true
 	if entry != nil {
-		doChangePassword = yesNoQuestion("Do you want to change the password? [y/n]: ", reader)
+		doChangePassword = yesNoQuestion("Do you want to change the password?", reader, false)
 	}
 
 	if doChangePassword {
-		doGeneratePassword := yesNoQuestion("Generate password? [y/n]: ", reader)
+		doGeneratePassword := yesNoQuestion("Generate password?", reader, true)
 		if doGeneratePassword {
 			password = generatePassword()
 			fmt.Printf("Generated password for %s!\n", name)
@@ -783,11 +825,21 @@ func findEntryIndex(entries *[]LoginInfo, name string) (int, bool) {
 	return -1, false
 }
 
-func removeEntryFrom(entries *[]LoginInfo, name string) ([]LoginInfo, bool) {
-	if i, found := findEntryIndex(entries, name); found {
-		return append((*entries)[:i], (*entries)[i+1:]...), true
+func removeEntryFrom(state *State, group, entry string) bool {
+	entries := (*state)[group]
+	i, found := findEntryIndex(&entries, entry)
+	if !found && strings.Contains(entry, ":") {
+		// split up group:entry from user input
+		parts := strings.SplitN(entry, ":", 2)
+		group = parts[0]
+		entry = parts[1]
+		entries = (*state)[group]
+		i, found = findEntryIndex(&entries, entry)
 	}
-	return *entries, false
+	if found {
+		(*state)[group] = append(entries[:i], entries[i+1:]...)
+	}
+	return found
 }
 
 // ============= Group helper functions ============= //
@@ -852,8 +904,8 @@ func removeGroup(groupName string, state *State, group string, reader *bufio.Rea
 			goAhead := entriesLen == 0 // if there are no entries, don't bother asking for confirmation
 			if groupName == "default" {
 				if !goAhead {
-					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove all (%d) entries of the default group? [y/n]: ",
-						entriesLen), reader)
+					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove all (%d) entries of the default group?",
+						entriesLen), reader, false)
 					if goAhead {
 						(*state)[groupName] = []LoginInfo{}
 					}
@@ -862,8 +914,8 @@ func removeGroup(groupName string, state *State, group string, reader *bufio.Rea
 				}
 			} else {
 				if !goAhead {
-					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove group '%s' and all of its (%d) entries? [y/n]: ",
-						groupName, entriesLen), reader)
+					goAhead = yesNoQuestion(fmt.Sprintf("Are you sure you want to remove group '%s' and all of its (%d) entries?",
+						groupName, entriesLen), reader, false)
 					if !goAhead {
 						println("Aborted!")
 					}
@@ -959,15 +1011,29 @@ func read(reader *bufio.Reader, prompt string) string {
 	return strings.TrimSpace(a)
 }
 
-func yesNoQuestion(question string, reader *bufio.Reader) bool {
+func yesNoQuestion(question string, reader *bufio.Reader, useYesAsDefault bool) bool {
+	return ask2OptionsQuestion(question, reader, "y", "n", useYesAsDefault)
+}
+
+func ask2OptionsQuestion(question string, reader *bufio.Reader,
+	yesAnswer, noAnswer string, useYesAsDefault bool) bool {
+	defaultReturn := false
+	defaultAnswer := noAnswer
+	if useYesAsDefault {
+		defaultReturn = true
+		defaultAnswer = yesAnswer
+	}
+	prompt := question + " [" + yesAnswer + "/" + noAnswer + "] (" + defaultAnswer + "): "
 	for {
-		yn := strings.ToLower(read(reader, question))
-		if len(yn) == 0 || yn == "y" {
+		yn := strings.ToLower(read(reader, prompt))
+		if len(yn) == 0 {
+			return defaultReturn
+		} else if yn == yesAnswer {
 			return true
-		} else if yn == "n" {
+		} else if yn == noAnswer {
 			return false
 		} else {
-			println("Please answer y or n (no answer means y)")
+			fmt.Printf("Please answer '%s' or '%s' (no answer means '%s')\n", yesAnswer, noAnswer, defaultAnswer)
 		}
 	}
 }
