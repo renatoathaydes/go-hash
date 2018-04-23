@@ -409,7 +409,7 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 
 	switch {
 	case CreateEntry:
-		createEntry(entry, state, group, reader)
+		createOrShowEntry(entry, state, group, reader, false)
 	case DeleteEntry:
 		removeEntry(entry, state, group, reader)
 	case RenameEntry:
@@ -419,7 +419,7 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 
 	// no option provided, the next cases list or offer to create an entry
 	case len(entry) > 0:
-		createEntry(entry, state, group, reader)
+		createOrShowEntry(entry, state, group, reader, true)
 	default:
 		entries := (*state)[group]
 		fmt.Printf("Showing group %s:\n\n", groupDescription(group, &entries, false))
@@ -629,7 +629,9 @@ func (cmd cmpCommand) run(state *State, group, args string, reader *bufio.Reader
 
 // ============= Entry helper functions ============= //
 
-func createEntry(entry string, state *State, group string, reader *bufio.Reader) {
+func createOrShowEntry(entry string, state *State, group string,
+	reader *bufio.Reader, showEntryIfExists bool) {
+	currentGroup := group
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
 		if strings.Contains(entry, ":") {
@@ -638,8 +640,8 @@ func createEntry(entry string, state *State, group string, reader *bufio.Reader)
 			candidateGroup := parts[0]
 			candidateEntry := parts[1]
 			useCandidates := ask2OptionsQuestion(
-				"Option 1: to create entry '"+candidateEntry+"' in group '"+candidateGroup+"'.\n"+
-					"Option 2: to create entry '"+entry+"' in group '"+group+"'.\n\n"+
+				"Option 1: create or view entry '"+candidateEntry+"' in group '"+candidateGroup+"'.\n"+
+					"Option 2: create or view entry '"+entry+"' in group '"+group+"'.\n\n"+
 					"Which option do you prefer?", reader, "1", "2", true)
 			if useCandidates {
 				group = candidateGroup
@@ -657,10 +659,14 @@ func createEntry(entry string, state *State, group string, reader *bufio.Reader)
 			}
 		}
 
-		if _, exists := findEntryIndex(&entries, entry); exists {
-			println("Error: entry already exists.")
+		if entryIndex, exists := findEntryIndex(&entries, entry); exists {
+			if showEntryIfExists {
+				println(entries[entryIndex].String())
+			} else {
+				println("Error: entry already exists.")
+			}
 		} else {
-			newEntry := createOrEditEntry(entry, reader, nil)
+			newEntry := createOrEditEntry(entry, group, currentGroup, reader, nil)
 			(*state)[group] = append(entries, newEntry)
 		}
 	} else {
@@ -704,6 +710,7 @@ func renameEntry(entry string, state *State, group string, reader *bufio.Reader)
 
 func editEntry(entry string, state *State, group string, reader *bufio.Reader) {
 	if len(entry) > 0 {
+		currentGroup := group
 		entries, _ := (*state)[group]
 
 		entryIndex, found := findEntryIndex(&entries, entry)
@@ -719,7 +726,7 @@ func editEntry(entry string, state *State, group string, reader *bufio.Reader) {
 		if found {
 			fmt.Printf("Editing entry:\n%s\n", entries[entryIndex].String())
 			println("\nHint: to keep the current value for a field, don't enter a new value.\n")
-			entries[entryIndex] = createOrEditEntry(entry, reader, &entries[entryIndex])
+			entries[entryIndex] = createOrEditEntry(entry, currentGroup, group, reader, &entries[entryIndex])
 		} else {
 			println("Error: entry does not exist.")
 		}
@@ -740,7 +747,8 @@ func removeEntry(entryName string, state *State, group string, reader *bufio.Rea
 	}
 }
 
-func createOrEditEntry(name string, reader *bufio.Reader, entry *LoginInfo) (result LoginInfo) {
+func createOrEditEntry(name, group, currentGroup string, reader *bufio.Reader,
+	entry *LoginInfo) (result LoginInfo) {
 	username := read(reader, "Enter username: ")
 
 	var URL string
@@ -772,7 +780,11 @@ func createOrEditEntry(name string, reader *bufio.Reader, entry *LoginInfo) (res
 		if doGeneratePassword {
 			password = generatePassword()
 			fmt.Printf("Generated password for %s!\n", name)
-			fmt.Printf("Hint: To copy it to the clipboard, type 'cp -p %s'.\n", name)
+			entryKey := name
+			if currentGroup != group {
+				entryKey = group + ":" + name
+			}
+			fmt.Printf("Hint: To copy it to the clipboard, type 'cp -p %s'.\n", entryKey)
 		} else {
 			for {
 				print("Please enter a password (at least 4 characters): ")
