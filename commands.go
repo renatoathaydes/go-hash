@@ -409,7 +409,7 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 
 	switch {
 	case CreateEntry:
-		createOrShowEntry(entry, state, group, reader, false)
+		createOrShowEntry(entry, state, group, reader, true)
 	case DeleteEntry:
 		removeEntry(entry, state, group, reader)
 	case RenameEntry:
@@ -419,7 +419,7 @@ func (cmd entryCommand) run(state *State, group, args string, reader *bufio.Read
 
 	// no option provided, the next cases list or offer to create an entry
 	case len(entry) > 0:
-		createOrShowEntry(entry, state, group, reader, true)
+		createOrShowEntry(entry, state, group, reader, false)
 	default:
 		entries := (*state)[group]
 		fmt.Printf("Showing group %s:\n\n", groupDescription(group, &entries, false))
@@ -630,7 +630,7 @@ func (cmd cmpCommand) run(state *State, group, args string, reader *bufio.Reader
 // ============= Entry helper functions ============= //
 
 func createOrShowEntry(entry string, state *State, group string,
-	reader *bufio.Reader, showEntryIfExists bool) {
+	reader *bufio.Reader, createOnly bool) {
 	currentGroup := group
 	if len(entry) > 0 {
 		entries, _ := (*state)[group]
@@ -659,14 +659,17 @@ func createOrShowEntry(entry string, state *State, group string,
 			}
 		}
 
-		if entryIndex, exists := findEntryIndex(&entries, entry); exists {
-			if showEntryIfExists {
-				println(entries[entryIndex].String())
-			} else {
+		entryIndex, exists := findEntryIndex(&entries, entry)
+		if exists {
+			if createOnly {
 				println("Error: entry already exists.")
+			} else {
+				println(entries[entryIndex].String())
 			}
 		} else {
-			if yesNoQuestion("Entry does not exist. Do you want to create it?", reader, true) {
+			doCreate := createOnly ||
+				yesNoQuestion("Entry does not exist. Do you want to create it?", reader, true)
+			if doCreate {
 				newEntry := createOrEditEntry(entry, group, currentGroup, reader, nil)
 				(*state)[group] = append(entries, newEntry)
 			}
