@@ -31,10 +31,15 @@ const (
 type PasswordStrength int
 
 const (
-	WEAK PasswordStrength = iota
+	// WEAK policy includes only standard latin alphabet characters.
+	WEAK PasswordStrength = iota + 1
+	// ALPHANUMERIC policy includes all alphanumeric characters.
 	ALPHANUMERIC
+	// NORMAL policy includes alphanumeric characters plus standard ASCII symbols.
 	NORMAL
+	// STRONG policy includes extended ASCII characters and standard ASCII symbols.
 	STRONG
+	// STRONGEST policy includes extended ASCII characters and extended ASCII symbols.
 	STRONGEST
 )
 
