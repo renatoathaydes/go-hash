@@ -134,7 +134,8 @@ func GetPasswordCharRange(passwordStrength PasswordStrength) (charRange []uint8)
 		charRange = createCharRange('\u0020', '\u007E')
 		charRange = append(charRange, createCharRange('\u00C0', '\u00FF')...)
 	case STRONGEST:
-		charRange = createCharRange('\u0020', '\u00FF')
+		charRange = createCharRange('\u0020', '\u007E')
+		charRange = append(charRange, createCharRange('\u00A1', '\u00FF')...)
 	}
 	return
 }
