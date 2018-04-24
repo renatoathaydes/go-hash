@@ -59,7 +59,7 @@ All information in a go-hash database is organised within groups of entries.
 
 A group has a name and may have 0 to many entries that are related somehow.
 
-For example, you may have a `work` group for stuff releated to work, and a `personal` group for personal accounts. 
+For example, you may have a `work` group for stuff releated to work, and a `personal` group for personal accounts.
 
 Entries contain the information you want to store securely. You can think of groups as directories, and entries as files.
 
@@ -75,6 +75,10 @@ Currently, the following information can be stored on each entry:
 Only `name` and `password` are mandatory.
 go-hash can generate a password for you when you create the entry (or you can enter one manually if you prefer).
 The `updatedAt` field is maintained automatically by go-hash.
+
+You can refer to an entry within a group by first entering the group using the `group` command, or by
+using the `group:entry` syntax (e.g. to show the entry called `foo` in the `personal` group, type 
+`entry personal:foo`).
 
 ## Usage
 
@@ -184,7 +188,7 @@ go-hash» group
 
 ### entry
 
-The entry command is used to show, edit, create and delete entries within the current group.
+The entry command is used to show, edit, create and delete entries within the current group or a specified group. 
 
 > Notice that you do not need to create a group explicitly, go-hash uses a `default` group if you do not create one.
 
@@ -250,6 +254,13 @@ To delete an entry, use the `-d` option:
 ```
 # delete an entry within the current group
 go-hash» entry -d google
+```
+
+To refer to an entry in a different group, use the `group:entry` syntax:
+
+```
+# display the entry called 'foo' in the 'top-secret' group
+go-hash» entry top-secret:foo
 ```
 
 ### goto

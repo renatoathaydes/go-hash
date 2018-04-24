@@ -164,19 +164,19 @@ otherwise full information about a specific command is shown.
 const entryUsage = `
 === entry command usage ===
 
-The entry command is used to manage entries within the current group.
+The entry command is used to manage entries within the current group or a specified group.
 To switch to a different group, use the 'group' command (type 'help group' for more information about groups).
 
 Usage:
-  entry [-option] [<name>]
+  entry [-option] [[<group>:]<name>]
 
 Options:
-  -c <name>   create an entry.
-  -d <name>   delete an entry.
-  -e <name>   edit an entry.
-  -r <name>   rename an entry.
+  -c   create an entry.
+  -d   delete an entry.
+  -e   edit an entry.
+  -r   rename an entry.
 
-Without an option or a <name> argument, the entry command simply lists all entries within the current group.
+Without an option or an argument, the entry command simply lists all entries within the current group.
 
 Typing 'entry <name>' will either display information about the entry, or create it if the entry does not exist.
 
@@ -185,8 +185,11 @@ Examples:
   # list all entries in the current group
   entry
 
-  # delete the entry called 'hello'
+  # delete the entry called 'hello' in the current group
   entry -d hello
+
+  # display the entry called 'foo' in the 'top-secret' group
+  entry top-secret:foo
 `
 const groupUsage = `
 === group command usage ===
@@ -229,11 +232,11 @@ The cp command can be used to copy information about entries to the clipboard.
 That allows users to easily copy/paste the information where the information is required.
 
 Usage:
-  cp [-option] <name>
+  cp [-option] [<group>:]<name>
 
 Options:
-  -u <name>   copy the username.
-  -p <name>   copy the password.
+  -u   copy the username.
+  -p   copy the password.
 
 If an option is not provided, the username associated with the chosen entry is copied.
 Information is automatically removed from the clipboard after one minute.
@@ -255,10 +258,10 @@ an entry directly in the default browser, then copying the password to the clipb
 it can be pasted into the login form without waste of time.
 
 Usage:
-  goto [-option] <name>
+  goto [-option] [<group>:]<name>
 
 Options:
-  -n <name>   do not copy the password.
+  -n   do not copy the password.
 
 If the -n option is not used, the entry's password is copied to the clipboard automatically.
 
