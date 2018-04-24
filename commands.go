@@ -666,8 +666,10 @@ func createOrShowEntry(entry string, state *State, group string,
 				println("Error: entry already exists.")
 			}
 		} else {
-			newEntry := createOrEditEntry(entry, group, currentGroup, reader, nil)
-			(*state)[group] = append(entries, newEntry)
+			if yesNoQuestion("Entry does not exist. Do you want to create it?", reader, true) {
+				newEntry := createOrEditEntry(entry, group, currentGroup, reader, nil)
+				(*state)[group] = append(entries, newEntry)
+			}
 		}
 	} else {
 		println("Error: please provide the name of the entry to be created.")
