@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -786,7 +787,7 @@ func createOrEditEntry(name, group, currentGroup string, reader *bufio.Reader,
 	if doChangePassword {
 		doGeneratePassword := yesNoQuestion("Generate password?", reader, true)
 		if doGeneratePassword {
-			password = generatePassword()
+			password = generatePassword(reader)
 			fmt.Printf("Generated password for %s!\n", name)
 			entryKey := name
 			if currentGroup != group {
@@ -999,26 +1000,62 @@ func open(url string) error {
 
 // ============= Other helper functions ============= //
 
-func generatePassword() (password string) {
-	charRange := encryption.DefaultPasswordCharRange()
+func generatePassword(reader *bufio.Reader) (password string) {
+	var charRange []uint8
+	passwordLength := 16
 
-	containsChars := func(p string, min rune, max rune) bool {
-		for _, c := range p {
-			if min <= c && c <= max {
-				return true
+	if yesNoQuestion("Do you want to customize the generated password?", reader, false) {
+		for {
+			answer := strings.TrimSpace(read(reader, "Choose a password length (16): "))
+			if answer == "" {
+				break
+			} else {
+				i, err := strconv.Atoi(answer)
+				if err == nil {
+					if i > 3 {
+						passwordLength = i
+						break
+					} else {
+						println("Error: Password length must be at least 4.")
+					}
+				} else {
+					println("Error: not a number. Please enter a number.")
+				}
 			}
 		}
-		return false
+
+		passwordStrength := encryption.STRONG
+		for {
+			answer := strings.TrimSpace(read(reader,
+				"\nChoose a password policy:\n\nOption 1: include only latin letters.\n"+
+					"Option 2: also include numbers.\n"+
+					"Option 3: also include symbols (e.g. @, !, >, $, etc.)\n"+
+					"Option 4: also include supplementary latin letters\n"+
+					"Option 5: include all extended ASCII characters, except control characters.\n\n"+
+					"Which option do you prefer? [1/2/3/4/5] (4) "))
+			if answer == "" {
+				break
+			} else {
+				i, err := strconv.Atoi(answer)
+				if err == nil {
+					s := encryption.PasswordStrength(i)
+					if s >= encryption.WEAK && s <= encryption.STRONGEST {
+						passwordStrength = s
+						break
+					} else {
+						println("Error: Out of range. Please choose a valid option.")
+					}
+				} else {
+					println("Error: not a number. Please enter a number.")
+				}
+			}
+		}
+		charRange = encryption.GetPasswordCharRange(passwordStrength)
+	} else {
+		charRange = encryption.DefaultPasswordCharRange()
 	}
 
-	for {
-		password = encryption.GeneratePassword(16, charRange)
-		if containsChars(password, '0', '9') &&
-			containsChars(password, 'A', 'Z') &&
-			containsChars(password, 'a', 'z') {
-			break
-		}
-	}
+	password = encryption.GeneratePassword(passwordLength, charRange)
 	return
 }
 

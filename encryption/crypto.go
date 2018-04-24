@@ -27,19 +27,21 @@ const (
 	KEYLEN uint32 = 32 // 32-bytes keys are used with AES-256
 )
 
+// PasswordStrength specifies the desired strength of a password generated with [GeneratePassword].
+type PasswordStrength int
+
+const (
+	WEAK PasswordStrength = iota
+	ALPHANUMERIC
+	NORMAL
+	STRONG
+	STRONGEST
+)
+
 var defaultPasswordCharRange []uint8
 
 func init() {
-	var (
-		minChar uint8 = ' '
-		maxChar uint8 = '~'
-	)
-	charRange := make([]uint8, 1+maxChar-minChar)
-	for i := 0; i < len(charRange); i++ {
-		charRange[i] = minChar + uint8(i)
-	}
-
-	defaultPasswordCharRange = charRange
+	defaultPasswordCharRange = GetPasswordCharRange(STRONG)
 }
 
 // Encrypt a message given a secret key.
@@ -100,6 +102,41 @@ func GenerateRandomBytes(len uint32) []byte {
 		panic(err)
 	}
 	return result
+}
+
+func createCharRange(minChar, maxChar uint8) []uint8 {
+	charRange := make([]uint8, 1+maxChar-minChar)
+	for i := 0; i < len(charRange); i++ {
+		charRange[i] = minChar + uint8(i)
+	}
+	return charRange
+}
+
+// GetPasswordCharRange returns the appropriate char-range for the given [PasswordStrength].
+func GetPasswordCharRange(passwordStrength PasswordStrength) (charRange []uint8) {
+	if passwordStrength < WEAK || passwordStrength > STRONGEST {
+		return defaultPasswordCharRange
+	}
+
+	// var (
+	// 	minChar uint8 = ' '
+	// 	maxChar uint8 = '~'
+	// )
+	switch passwordStrength {
+	case WEAK:
+		charRange = append(createCharRange('a', 'z'), createCharRange('A', 'Z')...)
+	case ALPHANUMERIC:
+		charRange = append(createCharRange('a', 'z'), createCharRange('A', 'Z')...)
+		charRange = append(charRange, createCharRange('0', '9')...)
+	case NORMAL:
+		charRange = createCharRange('\u0020', '\u007E')
+	case STRONG:
+		charRange = createCharRange('\u0020', '\u007E')
+		charRange = append(charRange, createCharRange('\u00C0', '\u00FF')...)
+	case STRONGEST:
+		charRange = createCharRange('\u0020', '\u00FF')
+	}
+	return
 }
 
 // DefaultPasswordCharRange returns the default ASCII characters to be used with GeneratePassword().
