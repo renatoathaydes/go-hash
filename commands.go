@@ -12,11 +12,18 @@ import (
 	"time"
 
 	"github.com/renatoathaydes/go-hash/encryption"
+	"github.com/renatoathaydes/go-hash/gohash_db"
 
 	"github.com/atotto/clipboard"
 	"github.com/chzyer/readline"
 	"golang.org/x/crypto/ssh/terminal"
 )
+
+// State local alias
+type State = gohash_db.State
+
+// LoginInfo local alias
+type LoginInfo = gohash_db.LoginInfo
 
 type command interface {
 	// run a command with the given state, within the given group.

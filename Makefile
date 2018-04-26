@@ -20,6 +20,7 @@ vendor: $(GODEP) Gopkg.toml Gopkg.lock
 bench: vendor
 	go test -bench .
 	cd encryption && go test -bench=.
+	cd gohash_db && go test -bench=.
 
 # runs all tests
 .PHONY: test

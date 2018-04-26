@@ -1,4 +1,4 @@
-package main
+package gohash_db
 
 import (
 	"os"

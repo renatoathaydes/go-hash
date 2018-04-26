@@ -14,6 +14,7 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/mitchellh/go-homedir"
+	"github.com/renatoathaydes/go-hash/gohash_db"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -89,7 +90,7 @@ func openDatabase(dbFilePath string) (state State, userPass string) {
 			panic(err)
 		}
 		userPass = string(bytePassword)
-		state, err = ReadDatabase(dbFilePath, userPass)
+		state, err = gohash_db.ReadDatabase(dbFilePath, userPass)
 		if err != nil {
 			println("Error: " + err.Error())
 		} else {
@@ -177,7 +178,7 @@ Loop:
 			command := commands[cmd]
 			if command != nil {
 				command.run(state, grBox.value, args, reader)
-				err := WriteDatabase(dbPath, mpBox.value, state)
+				err := gohash_db.WriteDatabase(dbPath, mpBox.value, state)
 				if err != nil {
 					println("Error writing to database: " + err.Error())
 				}
@@ -191,7 +192,7 @@ Loop:
 func main() {
 	var userPass string
 	var state State
-	println("Go-Hash version " + DBVersion)
+	println("Go-Hash version " + gohash_db.DBVersion)
 	println("")
 
 	var dbFilePath string
