@@ -108,12 +108,12 @@ func ReadDatabase(filePath string, password string) (State, error) {
 
 	fileStat, err := file.Stat()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// limit the size of the DB
 	if fileStat.Size() < MinDBLength || fileStat.Size() > 32000000 {
-		panic(dbError)
+		return nil, errors.New(dbError)
 	}
 
 	var fileOffset int64
@@ -121,7 +121,7 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	version := make([]byte, 4, 4)
 	_, err = file.ReadAt(version, fileOffset)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fileOffset += 4
 
@@ -135,14 +135,14 @@ func ReadDatabase(filePath string, password string) (State, error) {
 		threads = Argon2Threads
 		log.Printf("Database version: %s", DBVersion)
 	default:
-		panic("Unsupported database version")
+		return nil, errors.New("Unsupported database version")
 	}
 
 	log.Println("Reading salt")
 	salt := make([]byte, 32, 32)
 	_, err = file.ReadAt(salt, fileOffset)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fileOffset += 32
 	log.Println("Salt read successfully, calculating P.")
@@ -153,7 +153,7 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	B1 := make([]byte, 32, 32)
 	_, err = file.ReadAt(B1, fileOffset)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fileOffset += 32
 	log.Printf("Read B1: %x", B1)
@@ -161,7 +161,7 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	B2 := make([]byte, 32, 32)
 	_, err = file.ReadAt(B2, fileOffset)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fileOffset += 32
 	log.Printf("Read B2: %x", B2)
@@ -169,7 +169,7 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	B3 := make([]byte, 32, 32)
 	_, err = file.ReadAt(B3, fileOffset)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fileOffset += 32
 	log.Printf("Read B3: %x", B3)
@@ -177,31 +177,31 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	B4 := make([]byte, 32, 32)
 	_, err = file.ReadAt(B4, fileOffset)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fileOffset += 32
 	log.Printf("Read B4: %x", B4)
 
 	decryptedB1, err := encryption.Decrypt(P, B1)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	log.Println("Decrypted B1")
 	decryptedB2, err := encryption.Decrypt(P, B2)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	log.Println("Decrypted B2")
 
 	decryptedB3, err := encryption.Decrypt(P, B3)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	log.Println("Decrypted B3")
 
 	decryptedB4, err := encryption.Decrypt(P, B4)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	log.Println("Decrypted B4")
 
@@ -215,28 +215,28 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	mac := make([]byte, 64, 64)
 	_, err = file.ReadAt(mac, fileOffset)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fileOffset += 64
 
 	plen := fileStat.Size() - fileOffset
 
 	if plen > MaxDBLength {
-		panic(dbError)
+		return nil, errors.New(dbError)
 	}
 
 	log.Printf("Reading encrypted payload with len = %d", plen)
 	payload := make([]byte, plen, plen)
 	_, err = file.ReadAt(payload, fileOffset)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fileOffset += plen
 
 	log.Printf("Decrypting payload")
 	stateBytes, err := encryption.Decrypt(K, payload)
 	if err != nil {
-		panic(dbError)
+		return nil, errors.New(dbError)
 	}
 
 	expectedMac := encryption.Hmac(L, append(salt, stateBytes...))
