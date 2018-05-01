@@ -248,5 +248,15 @@ func ReadDatabase(filePath string, password string) (State, error) {
 	log.Printf("Database read successfully")
 
 	// decryption and validation completed successfully!
-	return decodeState(stateBytes)
+	data, err := decodeState(stateBytes)
+
+	if err == nil {
+		entryCount := 0
+		for _, entries := range data {
+			entryCount += len(entries)
+		}
+		log.Printf("Decoded database, found %d groups, containing %d entries",
+			len(data), entryCount)
+	}
+	return data, err
 }
