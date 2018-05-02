@@ -34,7 +34,7 @@ type Database struct {
 
 // Next returns the next EntryIterator, if any, or nil if none is available.
 func (iter *GroupIterator) Next() *EntryIterator {
-	if len(iter.keys) < int(iter.currentIndex) {
+	if int(iter.currentIndex) < len(iter.keys) {
 		group := iter.keys[iter.currentIndex]
 		iter.currentIndex++
 		info := iter.state[group]
@@ -45,7 +45,7 @@ func (iter *GroupIterator) Next() *EntryIterator {
 
 // Next returns the next Entry, if any, or nil if none is available.
 func (iter *EntryIterator) Next() *Entry {
-	if len(iter.entries) < int(iter.currentIndex) {
+	if int(iter.currentIndex) < len(iter.entries) {
 		info := iter.entries[iter.currentIndex]
 		iter.currentIndex++
 		return &Entry{loginInfo: info}
