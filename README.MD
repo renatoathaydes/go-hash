@@ -11,7 +11,7 @@ Current status:
 - [x] Create database
 - [x] Load custom database location
 - [x] Generate random password
-- [ ] Customize rules for generated passwords
+- [x] Customize rules for generated passwords
 - [x] Clear clipboard some time after copying content to it
 - [x] CLI `entry` command
 - [x] CLI `group` command
