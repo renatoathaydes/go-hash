@@ -1,0 +1,46 @@
+#!/bin/sh
+
+# On template vm, copy this script to /etc/qubes-rpc/qpass.ClipOpenURL
+# On template vm, install `xclip`
+
+# On dom0, create /etc/qubes-rpc/policy/qpass.ClipOpenURL.  I recommend:
+# `sudo cp /etc/qubes-rpc/policy/qubes.ClipboardPaste /etc/qubes-rpc/policy/qpass.ClipOpenURL`
+
+
+# first line of stdin will be sent to clipboard
+read -s clip
+
+# anything else on stdin we open
+
+while read -r url
+do
+    case "$url" in
+	http://*|\
+	https://*|\
+	ftp://*)
+            exec qubes-open "$url" &
+            ;;
+	*)
+            echo "Invalid URL" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# write to clipboard, via `xlip`
+# we use xclip here, because xsel fails to write to clipboard ("Conversion refused")
+command -v xclip >/dev/null 2>&1 || { echo >&2 "xclip not found"; exit 1; }
+(cat <<EOF
+$clip
+EOF
+) | xclip -selection clipboard
+
+# after some time passes, clear the clipboard
+sleep 20
+
+# (TODO: clear only if clipboard contents have not changed)
+
+# clear password from clipboard
+echo "" | xclip -selection clipboard
+
+
