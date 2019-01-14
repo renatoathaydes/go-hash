@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -18,9 +19,29 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+// exit gracefully if ctrl-C during password prompt
+// https://groups.google.com/forum/#!topic/golang-nuts/kTVAbtee9UA
+var initialState *terminal.State
+
 func init() {
 	log.SetOutput(ioutil.Discard)
 	log.SetFlags(0)
+
+	// remember initial terminal state
+	var err error
+	if initialState, err = terminal.GetState(syscall.Stdin); err != nil {
+		return
+	}
+
+	// and restore it on exit
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, os.Kill)
+	go func() {
+		<-c
+		println("")
+		_ = terminal.Restore(syscall.Stdin, initialState)
+		os.Exit(0)
+	}()
 }
 
 func getGoHashFilePath() string {
