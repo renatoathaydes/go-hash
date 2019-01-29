@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/chzyer/readline"
 	"github.com/mitchellh/go-homedir"
@@ -158,43 +157,10 @@ func runCliLoop(state *State, dbPath string, userPass string) {
 
 	eofCount := 0
 
-	// cli input to channel, so that we can exit on timeout
-	input := make(chan struct {
-		line string
-		err  error
-	})
-
 Loop:
 	for {
 		cli.SetPrompt(prompt())
-		go func() {
-			line, err := cli.Readline()
-			input <- struct {
-				line string
-				err  error
-			}{
-				line,
-				err,
-			}
-		}()
-
-		var line string
-		var err error
-
-		select {
-		case in := <-input:
-			line = in.line
-			err = in.err
-			// continue below
-
-		case <-time.After(2 * time.Minute):
-			println("\nExiting due to inactivity.")
-			// reverse the effect of readline
-			_ = terminal.Restore(syscall.Stdin, initialState)
-			// would be elegant to simply "break Loop" here, but that leaves goroutine (above) running
-			os.Exit(0)
-		}
-
+		line, err := cli.Readline()
 		if err != nil {
 			switch err {
 			case readline.ErrInterrupt:
