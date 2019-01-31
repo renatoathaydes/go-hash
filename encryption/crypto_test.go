@@ -261,9 +261,8 @@ func TestGeneratePassword(t *testing.T) {
 		// generate 1000 passwords
 		for i := 0; i < n; i++ {
 			pass := GeneratePassword(passLength, characterRange)
-			require.Len(t, pass, passLength, "Generated Password does not have the correct length")
-			if len(pass) != utf8.RuneCountInString(pass) {
-				t.Errorf("generated password rune count != byte count")
+			if utf8.RuneCountInString(pass) != passLength {
+				t.Errorf("generated password rune count: %d (expected %d)", utf8.RuneCountInString(pass), passLength)
 			}
 			if !utf8.ValidString(pass) {
 				t.Errorf("generated password is not a valid utf8 string: %s", pass)
@@ -271,13 +270,13 @@ func TestGeneratePassword(t *testing.T) {
 
 			// verify all characters are within the range
 		charLoop:
-			for _, c := range []byte(pass) {
-				for _, r := range characterRange {
-					if r == c {
+			for _, rune := range pass {
+				for _, char := range characterRange {
+					if string(char) == string(rune) {
 						continue charLoop
 					}
 				}
-				t.Error("unexpected byte in generated password: ", c)
+				t.Error("unexpected rune in generated password: ", rune)
 			}
 			passwordSet[pass] = true
 		}

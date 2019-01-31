@@ -1,6 +1,7 @@
 package encryption
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
@@ -152,20 +153,20 @@ func DefaultPasswordCharRange() []uint8 {
 
 // GeneratePassword generates a random sequence of the given ASCII characters.
 func GeneratePassword(length int, characters []uint8) string {
+	var buffer bytes.Buffer
 	maxIndex := len(characters)
 	if maxIndex < 2 {
 		panic("At least 2 characters must be provided")
 	}
 	maxIndexBig := big.NewInt(int64(maxIndex))
-	result := make([]uint8, length)
 	for i := 0; i < length; i++ {
 		n, err := rand.Int(rand.Reader, maxIndexBig)
 		if err != nil {
 			panic(err)
 		}
-		result[i] = characters[int(n.Uint64())]
+		buffer.WriteString(string(characters[int(n.Uint64())]))
 	}
-	return string(result)
+	return buffer.String()
 }
 
 // PasswordHash creates a cryptographical hash of the salted password.
