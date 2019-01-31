@@ -2,7 +2,9 @@ package encryption
 
 import (
 	"fmt"
+	"log"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
 )
@@ -241,33 +243,48 @@ func TestGetPasswordCharRangeSTRONGEST(t *testing.T) {
 }
 
 func TestGeneratePassword(t *testing.T) {
-	i := 0
-
-	// password characters range
-	characterRange := make([]uint8, 10, 10)
-	for i := 0; i < 10; i++ {
-		characterRange[i] = uint8(i + '0')
+	charRanges := [][]uint8{
+		GetPasswordCharRange(WEAK),
+		GetPasswordCharRange(ALPHANUMERIC),
+		GetPasswordCharRange(NORMAL),
+		GetPasswordCharRange(STRONG),
+		GetPasswordCharRange(STRONGEST),
 	}
-	fmt.Printf("Char range: %v\n", characterRange)
+	passLength := 16 // the default for generated passwords
+	n := 1000        // how many passwords to generate per range
 
-	// generate 1000 passwords
 	passwordSet := make(map[string]bool)
-	for i < 1000 {
-		pass := GeneratePassword(12, characterRange)
-		require.Len(t, pass, 12, "Generated Password does not have the correct length")
 
-		// verify all characters are within the range
-		for _, c := range pass {
-			if byte(c) < '0' || byte(c) > '9' {
-				t.Fatal("Unexpected byte in generated password: " + string(c))
+	for _, characterRange := range charRanges {
+		// fmt.Printf("Char range: %v\n", characterRange) // verbose
+
+		// generate 1000 passwords
+		for i := 0; i < n; i++ {
+			pass := GeneratePassword(passLength, characterRange)
+			require.Len(t, pass, passLength, "Generated Password does not have the correct length")
+			if len(pass) != utf8.RuneCountInString(pass) {
+				t.Errorf("generated password rune count != byte count")
 			}
-		}
-		passwordSet[pass] = true
-		i++
-	}
+			if !utf8.ValidString(pass) {
+				t.Errorf("generated password is not a valid utf8 string: %s", pass)
+			}
 
+			// verify all characters are within the range
+		charLoop:
+			for _, c := range []byte(pass) {
+				for _, r := range characterRange {
+					if r == c {
+						continue charLoop
+					}
+				}
+				t.Error("unexpected byte in generated password: ", c)
+			}
+			passwordSet[pass] = true
+		}
+	}
 	// check for uniqueness (chance of duplicates should be negligible)
-	require.Len(t, passwordSet, 1000, fmt.Sprintf("Found duplicate passwords in set: %v", passwordSet))
+	require.Len(t, passwordSet, n*len(charRanges), fmt.Sprintf("Found duplicate passwords in set: %v", passwordSet))
+	log.Printf("generated %d unique random passwords across %d character ranges", len(passwordSet), len(charRanges))
 }
 
 var blackHole interface{}
