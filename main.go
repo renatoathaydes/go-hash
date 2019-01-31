@@ -3,14 +3,17 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/chzyer/readline"
 	"github.com/mitchellh/go-homedir"
@@ -18,9 +21,31 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+// exit gracefully if ctrl-C during password prompt
+// https://groups.google.com/forum/#!topic/golang-nuts/kTVAbtee9UA
+var initialState *terminal.State
+
+var idleSec uint // password required after inactivity
+
 func init() {
 	log.SetOutput(ioutil.Discard)
 	log.SetFlags(0)
+
+	// remember initial terminal state
+	var err error
+	if initialState, err = terminal.GetState(syscall.Stdin); err != nil {
+		return
+	}
+
+	// and restore it on exit
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, os.Kill)
+	go func() {
+		<-c
+		println("")
+		_ = terminal.Restore(syscall.Stdin, initialState)
+		os.Exit(0)
+	}()
 }
 
 func getGoHashFilePath() string {
@@ -135,6 +160,8 @@ func runCliLoop(state *State, dbPath string, userPass string) {
 	defer cli.Close()
 
 	eofCount := 0
+	idleSince := time.Now()
+	passwordTimeout := time.Duration(idleSec) * time.Second
 
 Loop:
 	for {
@@ -177,8 +204,29 @@ Loop:
 		default:
 			command := commands[cmd]
 			if command != nil {
+
+				deltaT := time.Now().Sub(idleSince)
+				if cmd != "cmp" && cmd != "help" { // cmp will prompt for password every time, help is not sensitive
+					if idleSec > 0 && deltaT > passwordTimeout {
+						// prompt for password before allowing command to run
+						fmt.Printf("password required (idle %s)\n", deltaT.Round(time.Second))
+						print("master password: ")
+						pass, err := terminal.ReadPassword(int(syscall.Stdin))
+						println("")
+						if err != nil {
+							println("error:", err)
+							continue Loop
+						}
+						if string(pass) != mpBox.value {
+							println("error: password mismatch")
+							continue Loop
+						}
+					}
+					idleSince = time.Now()
+				}
+
 				command.run(state, grBox.value, args, reader)
-				err := gohash_db.WriteDatabase(dbPath, mpBox.value, state)
+				err = gohash_db.WriteDatabase(dbPath, mpBox.value, state)
 				if err != nil {
 					println("Error writing to database: " + err.Error())
 				}
@@ -196,20 +244,20 @@ func main() {
 	println("")
 
 	var dbFilePath string
+	flag.UintVar(&idleSec, "idle", 60, "password timeout, in seconds (use 0 for no timeout)")
+	flag.StringVar(&dbFilePath, "db", getGoHashFilePath(), "file where password data is stored")
+	flag.Parse()
 
-	switch len(os.Args) {
-	case 1:
-		dbFilePath = getGoHashFilePath()
-	case 2:
-		dbFilePath = os.Args[1]
-		if !parentDirExists(dbFilePath) {
-			panic("The provided file is under a non-existing directory. Please create the directory manually first.")
-		}
-		if isDir(dbFilePath) {
-			panic("The path you provided is a directory. Please provide a file.")
-		}
-	default:
-		panic("Too many arguments provided. go-hash only accepts none or one argument: the passwords file.")
+	if !parentDirExists(dbFilePath) {
+		panic("The provided file is under a non-existing directory. Please create the directory manually first.")
+	}
+	if isDir(dbFilePath) {
+		panic("The path you provided is a directory. Please provide a file.")
+	}
+
+	if len(flag.Args()) > 0 {
+		fmt.Printf("usage: %s [-db <database filename>] [-idle <password timeout>]", os.Args[0])
+		os.Exit(2)
 	}
 
 	dbFile, err := os.Open(dbFilePath)
