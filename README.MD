@@ -91,15 +91,17 @@ go-hash
 To create a new database in a custom location, just provide the path to the new file for the database:
 
 ```
-go-hash -db /path/to/file
+go-hash /path/to/file
 ```
 
 If the file already exists, go-hash will try to load it as an existing database.
 
-`go-hash` will prompt for master password if idle for 60 seconds (default).  To change the timeout, use flag `-idle <number of seconds>`.  Use `0` for no timeout.
+`go-hash` will prompt for the master password if idle for 120 seconds (default) or more.
+
+To change the timeout, start go-hash with the flag `-idle <number of seconds>`. Use `0` for no timeout.
 
 ```
-go-hash -idle 0
+go-hash -idle 0 -db /path/to/file
 ```
 
 ### Interact with the go-hash prompt
