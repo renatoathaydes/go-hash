@@ -37,6 +37,9 @@ type command interface {
 
 	// the auto-completer for this command
 	completer() readline.PrefixCompleterInterface
+
+	// requires password after idle timeout
+	requiresPasswordIfIdleTooLong() bool
 }
 
 type helpCommand struct {
@@ -367,6 +370,32 @@ func (cmd gotoCommand) completer() readline.PrefixCompleterInterface {
 
 func (cmd cmpCommand) completer() readline.PrefixCompleterInterface {
 	return readline.PcItem("cmp")
+}
+
+// ============= Commands: requires password after idle timeout ============= //
+
+func (cmd helpCommand) requiresPasswordIfIdleTooLong() bool {
+	return false
+}
+
+func (cmd entryCommand) requiresPasswordIfIdleTooLong() bool {
+	return true
+}
+
+func (cmd groupCommand) requiresPasswordIfIdleTooLong() bool {
+	return true
+}
+
+func (cmd cpCommand) requiresPasswordIfIdleTooLong() bool {
+	return true
+}
+
+func (cmd gotoCommand) requiresPasswordIfIdleTooLong() bool {
+	return true
+}
+
+func (cmd cmpCommand) requiresPasswordIfIdleTooLong() bool {
+	return false // it will ask for the password in the implementation
 }
 
 // ============= Commands: run implementations ============= //

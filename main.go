@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
-	"github.com/mitchellh/go-homedir"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/renatoathaydes/go-hash/gohash_db"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -24,8 +24,6 @@ import (
 // exit gracefully if ctrl-C during password prompt
 // https://groups.google.com/forum/#!topic/golang-nuts/kTVAbtee9UA
 var initialState *terminal.State
-
-var idleSec uint // password required after inactivity
 
 func init() {
 	log.SetOutput(ioutil.Discard)
@@ -134,7 +132,7 @@ func splitTrimN(text string, max int) []string {
 	return result
 }
 
-func runCliLoop(state *State, dbPath string, userPass string) {
+func runCliLoop(state *State, dbPath string, userPass string, passwordTimeout *time.Duration) {
 	grBox := stringBox{value: "default"}
 	mpBox := stringBox{value: userPass}
 	userPass = ""
@@ -161,7 +159,6 @@ func runCliLoop(state *State, dbPath string, userPass string) {
 
 	eofCount := 0
 	idleSince := time.Now()
-	passwordTimeout := time.Duration(idleSec) * time.Second
 
 Loop:
 	for {
@@ -186,6 +183,8 @@ Loop:
 			}
 		}
 
+		totalIdleTime := time.Now().Sub(idleSince)
+
 		eofCount = 0
 
 		parts := splitTrimN(line, 2)
@@ -204,24 +203,16 @@ Loop:
 		default:
 			command := commands[cmd]
 			if command != nil {
-
-				deltaT := time.Now().Sub(idleSince)
-				if cmd != "cmp" && cmd != "help" { // cmp will prompt for password every time, help is not sensitive
-					if idleSec > 0 && deltaT > passwordTimeout {
+				if command.requiresPasswordIfIdleTooLong() {
+					if passwordTimeout != nil && totalIdleTime > *passwordTimeout {
 						// prompt for password before allowing command to run
-						fmt.Printf("password required (idle %s)\n", deltaT.Round(time.Second))
-						print("master password: ")
-						pass, err := terminal.ReadPassword(int(syscall.Stdin))
-						println("")
-						if err != nil {
-							println("error:", err)
-							continue Loop
-						}
-						if string(pass) != mpBox.value {
-							println("error: password mismatch")
-							continue Loop
-						}
+						fmt.Printf("password required (idle %s)\n", totalIdleTime.Round(time.Second))
+
+						// if trying to re-open the database fails, the process will exit, otherwise just continue
+						openDatabase(dbPath)
 					}
+
+					// reset the idle timer only on commands that are sensitive
 					idleSince = time.Now()
 				}
 
@@ -243,7 +234,10 @@ func main() {
 	println("Go-Hash version " + gohash_db.DBVersion)
 	println("")
 
+	// TODO use old way of parsing if given just a file
 	var dbFilePath string
+	var idleSec uint // password required after inactivity
+
 	flag.UintVar(&idleSec, "idle", 60, "password timeout, in seconds (use 0 for no timeout)")
 	flag.StringVar(&dbFilePath, "db", getGoHashFilePath(), "file where password data is stored")
 	flag.Parse()
@@ -282,6 +276,8 @@ func main() {
 		state["default"] = []LoginInfo{}
 	}
 
+	passwordTimeout := time.Duration(idleSec) * time.Second
+
 	println("\nWelcome, go-hash at your service.\n")
-	runCliLoop(&state, dbFilePath, userPass)
+	runCliLoop(&state, dbFilePath, userPass, &passwordTimeout)
 }
