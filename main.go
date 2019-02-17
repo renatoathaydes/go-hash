@@ -228,19 +228,28 @@ Loop:
 	}
 }
 
-func main() {
-	var userPass string
-	var state State
-	println("Go-Hash version " + gohash_db.DBVersion)
-	println("")
+func parseOptions() (dbFilePath string, passwordTimeout *time.Duration) {
+	var defaultPasswordTimeout = time.Duration(120) * time.Second
+	if len(os.Args) == 1 { // no args given
+		return getGoHashFilePath(), &defaultPasswordTimeout
+	}
+	if len(os.Args) == 2 && !strings.HasPrefix(os.Args[1], "-") { // one arg, no flag
+		return os.Args[1], &defaultPasswordTimeout
+	}
 
-	// TODO use old way of parsing if given just a file
-	var dbFilePath string
 	var idleSec uint // password required after inactivity
 
-	flag.UintVar(&idleSec, "idle", 60, "password timeout, in seconds (use 0 for no timeout)")
-	flag.StringVar(&dbFilePath, "db", getGoHashFilePath(), "file where password data is stored")
+	flag.UintVar(&idleSec, "idle", 120, "password timeout, in seconds (use 0 for no timeout)")
+	flag.StringVar(&dbFilePath, "db", getGoHashFilePath(), "database file")
 	flag.Parse()
+
+	if len(flag.Args()) > 0 {
+		fmt.Printf("usage: %s [-db <database filename>] [-idle <password timeout>]", os.Args[0])
+		os.Exit(2)
+	}
+
+	timeout := time.Duration(idleSec) * time.Second
+	passwordTimeout = &timeout
 
 	if !parentDirExists(dbFilePath) {
 		panic("The provided file is under a non-existing directory. Please create the directory manually first.")
@@ -248,11 +257,16 @@ func main() {
 	if isDir(dbFilePath) {
 		panic("The path you provided is a directory. Please provide a file.")
 	}
+	return
+}
 
-	if len(flag.Args()) > 0 {
-		fmt.Printf("usage: %s [-db <database filename>] [-idle <password timeout>]", os.Args[0])
-		os.Exit(2)
-	}
+func main() {
+	var userPass string
+	var state State
+	println("Go-Hash version " + gohash_db.DBVersion)
+	println("")
+
+	dbFilePath, passwordTimeout := parseOptions()
 
 	dbFile, err := os.Open(dbFilePath)
 	if err != nil {
@@ -276,8 +290,6 @@ func main() {
 		state["default"] = []LoginInfo{}
 	}
 
-	passwordTimeout := time.Duration(idleSec) * time.Second
-
 	println("\nWelcome, go-hash at your service.\n")
-	runCliLoop(&state, dbFilePath, userPass, &passwordTimeout)
+	runCliLoop(&state, dbFilePath, userPass, passwordTimeout)
 }
