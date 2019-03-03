@@ -434,6 +434,13 @@ The local release files go in the `releases` folder.
 > To see a list of all targets, in a shell that supports it (most shells), just type `make ` and hit Tab.
 Otherwise, see the [Makefile](Makefile).
 
+### Releasing
+
+`make release` creates binaries for all platforms. This is used by the TravisCI integration to create
+a new release on GitHub when a new tag is pushed via git.
+
+The description of the release must be entered manually.
+
 ### Build with just go
 
 Make is not necessary to build, it's used just for convenience.
