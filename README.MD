@@ -436,7 +436,7 @@ Otherwise, see the [Makefile](Makefile).
 
 ### Build with just go
 
-Make is not necessary to build, it's just use for convenience.
+Make is not necessary to build, it's used just for convenience.
 
 If you don't have make or just don't want to use it, here's how to build go-hash without it:
 
