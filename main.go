@@ -31,7 +31,7 @@ func init() {
 
 	// remember initial terminal state
 	var err error
-	if initialState, err = terminal.GetState(syscall.Stdin); err != nil {
+	if initialState, err = terminal.GetState(int(syscall.Stdin)); err != nil {
 		return
 	}
 
@@ -41,7 +41,7 @@ func init() {
 	go func() {
 		<-c
 		println("")
-		_ = terminal.Restore(syscall.Stdin, initialState)
+		_ = terminal.Restore(int(syscall.Stdin), initialState)
 		os.Exit(0)
 	}()
 }
