@@ -23,7 +23,7 @@
   branch = "master"
   name = "github.com/golang/crypto"
   packages = ["argon2"]
-  revision = "74369b46fc6756741c016591724fd1cb8e26845f"
+  revision = "8dd112bcdc25174059e45e07517d9fc663123347"
 
 [[projects]]
   name = "github.com/mitchellh/go-homedir"
@@ -53,7 +53,7 @@
     "blake2b",
     "ssh/terminal"
   ]
-  revision = "74369b46fc6756741c016591724fd1cb8e26845f"
+  revision = "8dd112bcdc25174059e45e07517d9fc663123347"
 
 [[projects]]
   branch = "master"
@@ -63,7 +63,7 @@
     "unix",
     "windows"
   ]
-  revision = "d0b11bdaac8adb652bff00e49bcacf992835621a"
+  revision = "d455e41777fca6e8a5a79e34a14b8368bc11d9ba"
 
 [solve-meta]
   analyzer-name = "dep"
