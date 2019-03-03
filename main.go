@@ -115,12 +115,14 @@ func openDatabase(dbFilePath string) (state State, userPass string) {
 		userPass = string(bytePassword)
 		state, err = gohash_db.ReadDatabase(dbFilePath, userPass)
 		if err != nil {
-			println("Error: " + err.Error())
+			println("✗ Error: " + err.Error())
 		} else {
+			// success
+			fmt.Printf("\n✔ Opened database at %s\n", dbFilePath)
 			return
 		}
 	}
-	panic("Too many attempts!")
+	panic("Aborting. Too many attempts!")
 }
 
 func splitTrimN(text string, max int) []string {
@@ -205,11 +207,15 @@ Loop:
 			if command != nil {
 				if command.requiresPasswordIfIdleTooLong() {
 					if passwordTimeout != nil && totalIdleTime > *passwordTimeout {
+						mpBox.value = ""
+
 						// prompt for password before allowing command to run
-						fmt.Printf("password required (idle %s)\n", totalIdleTime.Round(time.Second))
+						fmt.Printf("⚠ password required (idle %s)\n", totalIdleTime.Round(time.Second))
 
 						// if trying to re-open the database fails, the process will exit, otherwise just continue
-						openDatabase(dbPath)
+						*state, userPass = openDatabase(dbPath)
+						mpBox.value = userPass
+						userPass = ""
 					}
 
 					// reset the idle timer only on commands that are sensitive
