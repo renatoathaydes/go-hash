@@ -5,31 +5,26 @@ ifeq ($(GOPATH),)
   GOPATH=~/go
 endif
 
-GODEP=$(GOPATH)/src/github.com/golang/dep/cmd/dep
-
-# get dep if necessary
-$(GODEP):
-	go get -u github.com/golang/dep/cmd/dep
-
-# download all dependencies into the vendor dir
-vendor: $(GODEP) Gopkg.toml Gopkg.lock
-	dep ensure
+# setup dependencies
+.PHONY: setup
+setup:
+	go get
 
 # runs all tests and benchmarks
 .PHONY: bench
-bench: vendor
+bench: setup
 	go test -bench .
 	cd encryption && go test -bench=.
 	cd gohash_db && go test -bench=.
 
 # runs all tests
 .PHONY: test
-test: vendor
+test: setup
 	go test ./...
 
 # installs go-hash
 .PHONY: install
-install: vendor
+install: setup
 	go install
 
 # build a smaller executable without symbols and debug info for all supported OSs and ARCHs
@@ -45,15 +40,15 @@ release-windows:
 
 release-darwin:
 	env GOOS=darwin env GOARCH=amd64 go build -ldflags "-s -w" -o releases/go-hash-darwin-amd64
+	env GOOS=darwin env GOARCH=arm64 go build -ldflags "-s -w" -o releases/go-hash-darwin-arm64
 
 release: test release-linux release-windows release-darwin
 
-# clean build artifacts, i.e. everything that is not source code, including the vendor directory.
+# clean build artifacts, i.e. everything that is not source code.
 # Does not remove the installed binary.
 .PHONY: clean
 clean:
 	rm -f go-hash
-	rm -rf vendor
 	rm -rf releases
 
 # uninstall the go-hash binary

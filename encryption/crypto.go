@@ -10,7 +10,7 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/golang/crypto/argon2"
+	"golang.org/x/crypto/argon2"
 )
 
 const (
