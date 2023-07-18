@@ -107,6 +107,19 @@ func createCommands(state *State, groupBox *stringBox, masterPassBox *stringBox)
 		"goto": gotoCommand{
 			entries: getEntries,
 		},
+		// QubesOS versions of goto are "appvm" and "dispvm"
+		"appvm": appvmCommand{
+			dispvm: false,
+			gotoCommand: gotoCommand{
+				entries: getEntries,
+			},
+		},
+		"dispvm": appvmCommand{
+			dispvm: true,
+			gotoCommand: gotoCommand{
+				entries: getEntries,
+			},
+		},
 		"cmp": cmpCommand{
 			mpBox: masterPassBox,
 		},
@@ -152,6 +165,14 @@ func (cmd cpCommand) help() string {
 
 func (cmd gotoCommand) help() string {
 	return "goes to the URL associated with an entry and copies its password to the clipboard."
+}
+
+func (cmd appvmCommand) help() string {
+	if cmd.dispvm {
+		return "open URL in a disposable vm, with password copied to vm clipboard."
+	} else {
+		return "open URL in an application vm, with password copied to vm clipboard."
+	}
 }
 
 func (cmd cmpCommand) help() string {
